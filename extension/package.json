@@ -1,0 +1,61 @@
+{
+  "name": "superborrow",
+  "displayName": "Superborrow (Phase 1)",
+  "description": "Bidirectional Rust completion engine bridge for VS Code-compatible editors.",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "superborrow-dev",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/src/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:superborrow.checkBridge"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dRafaleD/superborrow.git"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "superborrow.checkBridge",
+        "title": "Superborrow: Check Bridge"
+      }
+    ],
+    "configuration": {
+      "title": "Superborrow",
+      "properties": {
+        "superborrow.corePath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Absolute core binary path. Empty uses the bundled binary, or the development checkout's debug binary."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "package:windows": "node scripts/package-windows.cjs",
+    "compile": "tsc -p .",
+    "test": "npm run compile && node --test dist/test/*.test.js"
+  },
+  "dependencies": {
+    "vscode-jsonrpc": "^8.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "~1.96.0",
+    "@vscode/vsce": "^4.1.1",
+    "typescript": "^5.7.3"
+  }
+}
