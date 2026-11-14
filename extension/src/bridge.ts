@@ -39,7 +39,9 @@ export class CoreBridge {
     this.rpc = createMessageConnection(reader, new BridgeWriter(this.child.stdin));
     this.rpc.onError(([error]) => log(`RPC: ${error.message}`));
     this.child.on("error", (error) => { log(`Core: ${error.message}`); this.dispose(); });
-    this.child.on("exit", (code, signal) => {
+    // 'exit' can precede the final stdout bytes (notably on Linux). Keep the
+    // transport alive until all child stdio streams have closed.
+    this.child.on("close", (code, signal) => {
       log(`Core exited (${code ?? signal})`);
       this.dispose();
     });
@@ -103,6 +105,11 @@ export class CoreBridge {
         this.rpc.sendRequest(Methods.shutdown),
         new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Shutdown timeout")), 1000); }),
       ]);
+    } catch (error) {
+      // A clean process exit is also a successful shutdown acknowledgement.
+      // The JSON-RPC dispatcher can still have its final response queued when
+      // close tears down the connection; never apply this rule to model calls.
+      if (this.child.exitCode !== 0 || (error as { code?: number })?.code !== -32097) throw error;
     } finally { if (timer) clearTimeout(timer); this.dispose(); }
   }
 
