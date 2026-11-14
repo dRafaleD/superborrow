@@ -1,15 +1,15 @@
 {
   "name": "superborrow",
-  "displayName": "Superborrow (Phase 1)",
-  "description": "Bidirectional Rust completion engine bridge for VS Code-compatible editors.",
-  "version": "0.1.0",
+  "displayName": "Superborrow",
+  "description": "Hybrid local and IDE code completion with FIM context and reviewed next edits.",
+  "version": "0.2.0",
   "private": true,
   "publisher": "superborrow-dev",
   "engines": {
     "vscode": "^1.96.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages", "Machine Learning"
   ],
   "main": "./dist/src/extension.js",
   "activationEvents": [
@@ -30,11 +30,30 @@
       {
         "command": "superborrow.checkBridge",
         "title": "Superborrow: Check Bridge"
-      }
+      },
+      { "command": "superborrow.cycleMode", "title": "Antigravity Tab: Switch Mode" },
+      { "command": "superborrow.toggle", "title": "Antigravity Tab: Pause / Resume" },
+      { "command": "superborrow.selectModel", "title": "Antigravity Tab: Select IDE Model" },
+      { "command": "superborrow.inspectModels", "title": "Antigravity Tab: Inspect Available Models" },
+      { "command": "superborrow.nextEdit", "title": "Antigravity Tab: Suggest Next Edit" },
+      { "command": "superborrow.showOutput", "title": "Antigravity Tab: Show Diagnostics" }
     ],
     "configuration": {
       "title": "Superborrow",
       "properties": {
+        "superborrow.enabled": { "type": "boolean", "default": true, "description": "Enable inline suggestions and in-memory document context." },
+        "superborrow.mode": { "type": "string", "enum": ["hybrid", "local", "ide"], "default": "hybrid", "description": "Local uses only the loopback model. IDE uses the selected model. Hybrid routes by context and can fall back between available providers." },
+        "superborrow.localApi": { "type": "string", "enum": ["llamaInfill", "ollama", "openAi"], "default": "llamaInfill", "scope": "machine", "description": "Local server wire protocol. Set endpoint and model to match." },
+        "superborrow.endpoint": { "type": "string", "default": "http://127.0.0.1:8080/infill", "scope": "machine", "description": "Full HTTP loopback endpoint: llama.cpp /infill, Ollama /api/generate, or OpenAI-compatible /v1/completions. Redirects and proxies are disabled." },
+        "superborrow.model": { "type": "string", "default": "", "maxLength": 256, "scope": "machine", "description": "Required model name for Ollama / OpenAI-compatible local servers." },
+        "superborrow.fimFormat": { "type": "string", "enum": ["qwen", "codestral"], "default": "qwen", "description": "Raw FIM token layout for Ollama and OpenAI-compatible completions. llama.cpp /infill applies its own tokenizer." },
+        "superborrow.debounceMs": { "type": "integer", "minimum": 0, "maximum": 1000, "default": 60, "description": "Wait after automatic requests before starting inference. Explicit requests skip this wait." },
+        "superborrow.requestTimeoutMs": { "type": "integer", "minimum": 250, "maximum": 120000, "default": 10000, "description": "End-to-end core timeout including debounce and fallback." },
+        "superborrow.maxTokens": { "type": "integer", "minimum": 1, "maximum": 1024, "default": 128, "description": "Local output token budget and IDE input reservation. The portable IDE API does not expose an output-token limit." },
+        "superborrow.maxContextBytes": { "type": "integer", "minimum": 2048, "maximum": 64000, "default": 24000, "description": "Bounded UTF-8 prompt context budget, including prefix, suffix, signatures and recent edits." },
+        "superborrow.projectContext": { "type": "string", "maxLength": 8192, "default": "", "description": "Optional stable project notes prepended to prompts. No project files are read automatically." },
+        "superborrow.exclude": { "type": "array", "items": { "type": "string", "maxLength": 256 }, "maxItems": 64, "default": [".env*", "*.pem", "*.key", ".git", "node_modules", "target", "dist"], "description": "Excluded file/path fragments with * and ? wildcards. Matching is case-insensitive. Excluded documents are removed from context." },
+        "superborrow.ideAdapterExtension": { "type": "string", "default": "", "scope": "machine", "description": "Optional installed extension ID exporting superborrowCompletionProvider v1. Activated only by Select IDE Model." },
         "superborrow.corePath": {
           "type": "string",
           "default": "",
@@ -46,6 +65,7 @@
   },
   "scripts": {
     "package:windows": "node scripts/package-windows.cjs",
+    "smoke:local": "npm run compile && node scripts/smoke-local.cjs",
     "compile": "tsc -p .",
     "test": "npm run compile && node --test dist/test/*.test.js"
   },

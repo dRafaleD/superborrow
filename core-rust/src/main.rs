@@ -1,229 +1,355 @@
+mod config;
+mod context;
 mod protocol;
+mod provider;
 mod transport;
 
-use protocol::{Completion, Document, Mode, offset};
+use config::Config;
+use context::ContextEngine;
+use protocol::{Completion, Document};
+use provider::{Answer, Event, Failure, HybridRouter, IdeBridgeProvider, LocalProvider};
 use serde_json::{Value, json};
 use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+    time::Duration,
 };
-use tokio::io::{AsyncWrite, BufReader};
+use tokio::{
+    io::BufReader,
+    sync::{mpsc, oneshot},
+};
+use tokio_util::sync::CancellationToken;
 use transport::{read_frame, write_frame};
 
-struct Pending {
-    original: Value,
+struct Job {
+    id: Value,
     uri: String,
     version: u32,
-    deadline: Instant,
+    cancel: CancellationToken,
+}
+struct Reverse {
+    job: u64,
+    reply: oneshot::Sender<Answer>,
+}
+struct Server {
+    output: tokio::io::Stdout,
+    context: ContextEngine,
+    config: Config,
+    initialized: bool,
+    jobs: BTreeMap<u64, Job>,
+    reverse: HashMap<String, Reverse>,
+    serial: u64,
+    events: mpsc::Sender<Event>,
+    local: Arc<LocalProvider>,
 }
 
-async fn error<W: AsyncWrite + Unpin>(
-    out: &mut W,
-    id: Value,
-    code: i32,
-    message: &str,
-) -> std::io::Result<()> {
-    write_frame(
-        out,
-        &json!({"jsonrpc":"2.0","id":id,"error":{"code":code,"message":message}}),
-    )
-    .await
-}
-
-#[tokio::main]
-async fn main() -> std::io::Result<()> {
-    // Only framed protocol messages go to stdout. Diagnostics go to stderr.
-    let mut input = BufReader::new(tokio::io::stdin());
-    let mut output = tokio::io::stdout();
-    let mut documents: HashMap<String, Document> = HashMap::new();
-    let mut pending: HashMap<String, Pending> = HashMap::new();
-    let mut serial: u64 = 0;
-    let mut initialized = false;
-    let mut tick = tokio::time::interval(Duration::from_millis(100));
-    // Keep the partially-read frame alive while processing timeout ticks.
-    let mut frame = Box::pin(read_frame(&mut input));
-    loop {
-        let body = tokio::select! {
-            result = &mut frame => {
-                let body = result?;
-                drop(frame);
-                frame = Box::pin(read_frame(&mut input));
-                match body { Some(body) => body, None => break }
+impl Server {
+    async fn result(&mut self, id: Value, result: Value) -> std::io::Result<()> {
+        write_frame(
+            &mut self.output,
+            &json!({"jsonrpc":"2.0","id":id,"result":result}),
+        )
+        .await
+    }
+    async fn error(&mut self, id: Value, code: i32, message: &str) -> std::io::Result<()> {
+        write_frame(
+            &mut self.output,
+            &json!({"jsonrpc":"2.0","id":id,"error":{"code":code,"message":message}}),
+        )
+        .await
+    }
+    async fn clear_reverse(&mut self, job: u64) -> std::io::Result<()> {
+        let keys: Vec<_> = self
+            .reverse
+            .iter()
+            .filter(|(_, value)| value.job == job)
+            .map(|(key, _)| key.clone())
+            .collect();
+        for key in keys {
+            if let Some(reverse) = self.reverse.remove(&key) {
+                let _ = reverse.reply.send(Err(Failure::cancelled()));
             }
-            _ = tick.tick() => {
-                let expired: Vec<_> = pending.iter().filter(|(_, p)| p.deadline <= Instant::now()).map(|(id, _)| id.clone()).collect();
-                for id in expired {
-                    let p = pending.remove(&id).unwrap();
-                    write_frame(&mut output, &json!({"jsonrpc":"2.0","method":"cancelRequest","params":{"id":id}})).await?;
-                    error(&mut output, p.original, -32002, "IDE bridge timed out").await?;
+            write_frame(
+                &mut self.output,
+                &json!({"jsonrpc":"2.0","method":"cancelRequest","params":{"id":key}}),
+            )
+            .await?;
+        }
+        Ok(())
+    }
+    async fn cancel(&mut self, key: u64, code: i32, message: &str) -> std::io::Result<()> {
+        if let Some(job) = self.jobs.remove(&key) {
+            job.cancel.cancel();
+            self.clear_reverse(key).await?;
+            self.error(job.id, code, message).await?;
+        }
+        Ok(())
+    }
+    async fn cancel_document(&mut self, uri: &str) -> std::io::Result<()> {
+        let keys: Vec<_> = self
+            .jobs
+            .iter()
+            .filter(|(_, job)| job.uri == uri)
+            .map(|(key, _)| *key)
+            .collect();
+        for key in keys {
+            self.cancel(key, -32801, "Document changed or closed")
+                .await?;
+        }
+        Ok(())
+    }
+    async fn event(&mut self, event: Event) -> std::io::Result<()> {
+        match event {
+            Event::Reverse {
+                job,
+                mut params,
+                reply,
+            } => {
+                if !self.jobs.contains_key(&job) {
+                    let _ = reply.send(Err(Failure::cancelled()));
+                    return Ok(());
                 }
-                continue;
+                self.serial += 1;
+                let id = format!("core:{}", self.serial);
+                params["requestId"] = json!(id);
+                write_frame(
+                    &mut self.output,
+                    &json!({"jsonrpc":"2.0","id":id,"method":"requestIdeModel","params":params}),
+                )
+                .await?;
+                self.reverse.insert(id, Reverse { job, reply });
             }
-        };
-        let message: Value = match serde_json::from_slice(&body) {
+            Event::Finished { job: key, result } => {
+                if let Some(job) = self.jobs.remove(&key) {
+                    self.clear_reverse(key).await?;
+                    if self.context.version(&job.uri) != Some(job.version) {
+                        self.error(job.id, -32801, "Document changed").await?;
+                    } else {
+                        match result {
+                            Ok(answer) => self.result(job.id, json!({"text":answer.text,"version":job.version,"provider":answer.provider,"fallback":answer.fallback,"elapsedMs":answer.elapsed_ms})).await?,
+                            Err(error) => self.error(job.id, error.code, &error.message).await?,
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    async fn message(&mut self, body: &[u8]) -> std::io::Result<bool> {
+        let message: Value = match serde_json::from_slice(body) {
             Ok(value) => value,
             Err(_) => {
-                error(&mut output, Value::Null, -32700, "Parse error").await?;
-                continue;
+                self.error(Value::Null, -32700, "Parse error").await?;
+                return Ok(false);
             }
         };
-        let id = message.get("id").cloned();
         if !message.is_object() || message["jsonrpc"] != "2.0" {
-            error(&mut output, Value::Null, -32600, "Invalid Request").await?;
-            continue;
+            self.error(Value::Null, -32600, "Invalid Request").await?;
+            return Ok(false);
         }
+        let id = message.get("id").cloned();
         let Some(method) = message.get("method") else {
-            // Resolve reverse requests independently of incoming forward requests.
             if let Some(key) = id.as_ref().and_then(Value::as_str)
-                && let Some(p) = pending.remove(key)
+                && let Some(reverse) = self.reverse.remove(key)
             {
-                if message.get("error").is_some() {
-                    error(&mut output, p.original, -32003, "IDE model unavailable").await?;
-                } else if documents.get(&p.uri).map(|d| d.version) != Some(p.version) {
-                    error(&mut output, p.original, -32801, "Document changed").await?;
+                let result = if message.get("error").is_some() {
+                    Err(Failure::new(
+                        -32003,
+                        message["error"]["message"]
+                            .as_str()
+                            .map(|text| context::head(text, 256))
+                            .unwrap_or("IDE model unavailable"),
+                    ))
                 } else if let Some(text) = message["result"]["text"].as_str() {
-                    write_frame(&mut output, &json!({"jsonrpc":"2.0","id":p.original,"result":{"text":text,"version":p.version}})).await?;
+                    if text.len() > 65_536 {
+                        Err(Failure::new(-32603, "IDE completion exceeds limit"))
+                    } else {
+                        Ok(text.into())
+                    }
                 } else {
-                    error(&mut output, p.original, -32603, "Invalid IDE result").await?;
-                }
+                    Err(Failure::new(-32603, "Invalid IDE result"))
+                };
+                let _ = reverse.reply.send(result);
             }
-            continue;
+            return Ok(false);
         };
         if id.as_ref().is_some_and(|id| {
             !(id.is_string()
                 || id
                     .as_i64()
                     .is_some_and(|n| n.unsigned_abs() <= 9_007_199_254_740_991))
-        }) {
-            error(&mut output, Value::Null, -32600, "Invalid request ID").await?;
-            continue;
+        }) || !method.is_string()
+        {
+            self.error(Value::Null, -32600, "Invalid method or ID")
+                .await?;
+            return Ok(false);
         }
-        let Some(method) = method.as_str() else {
-            error(
-                &mut output,
-                id.unwrap_or(Value::Null),
-                -32600,
-                "Invalid method",
-            )
-            .await?;
-            continue;
-        };
+        let method = method.as_str().unwrap();
         let params = message.get("params").cloned().unwrap_or(Value::Null);
-        let mut result = Ok(Value::Null);
+        let mut result: Result<Value, (i32, &str)> = Ok(Value::Null);
         match method {
             "initialize" => {
                 if params["protocolVersion"] != 1 {
                     result = Err((-32602, "Expected protocolVersion 1"));
                 } else {
-                    initialized = true;
-                    result = Ok(json!({"protocolVersion":1,"phase":1}));
+                    self.initialized = true;
+                    result = Ok(
+                        json!({"protocolVersion":1,"phase":4,"capabilities":{"fim":true,"nextEdit":true,"cancellation":true,"streamingLocal":true},"version":env!("CARGO_PKG_VERSION")}),
+                    );
                 }
             }
             "shutdown" => {
                 if let Some(id) = id {
-                    write_frame(&mut output, &json!({"jsonrpc":"2.0","id":id,"result":null}))
-                        .await?;
+                    self.result(id, Value::Null).await?;
                 }
-                break;
+                return Ok(true);
             }
-            _ if !initialized => result = Err((-32000, "Initialize first")),
+            _ if !self.initialized => result = Err((-32000, "Initialize first")),
+            "configure" => match serde_json::from_value::<Config>(params) {
+                Ok(config) => match config.validate() {
+                    Ok(()) => {
+                        let keys: Vec<_> = self.jobs.keys().copied().collect();
+                        for key in keys {
+                            self.cancel(key, -32800, "Configuration changed").await?;
+                        }
+                        self.config = config;
+                    }
+                    Err(message) => result = Err((-32602, message)),
+                },
+                Err(_) => result = Err((-32602, "Invalid configuration")),
+            },
             "updateDocument" => match serde_json::from_value::<Document>(params) {
                 Ok(doc) => {
-                    if documents
-                        .get(&doc.uri)
-                        .is_some_and(|old| old.version >= doc.version)
-                    {
-                        result = Err((-32801, "Document version must increase"));
-                    } else {
-                        documents.insert(doc.uri.clone(), doc);
+                    let uri = doc.uri.clone();
+                    result = self.context.update(doc).map(|_| Value::Null);
+                    if result.is_ok() {
+                        self.cancel_document(&uri).await?;
                     }
                 }
                 Err(_) => result = Err((-32602, "Invalid document")),
             },
             "closeDocument" => {
                 if let Some(uri) = params["uri"].as_str() {
-                    documents.remove(uri);
+                    self.context.close(uri);
+                    self.cancel_document(uri).await?;
                 } else {
                     result = Err((-32602, "Expected uri"));
                 }
             }
-            "cancelRequest" => {
-                let target = &params["id"];
-                let keys: Vec<_> = pending
+            "cancelRequest" | "$/cancelRequest" => {
+                let keys: Vec<_> = self
+                    .jobs
                     .iter()
-                    .filter(|(_, p)| &p.original == target)
-                    .map(|(key, _)| key.clone())
+                    .filter(|(_, job)| job.id == params["id"])
+                    .map(|(key, _)| *key)
                     .collect();
                 for key in keys {
-                    let p = pending.remove(&key).unwrap();
-                    write_frame(
-                        &mut output,
-                        &json!({"jsonrpc":"2.0","method":"cancelRequest","params":{"id":key}}),
-                    )
-                    .await?;
-                    error(&mut output, p.original, -32800, "Request cancelled").await?;
+                    self.cancel(key, -32800, "Request cancelled").await?;
                 }
             }
             "requestCompletion" => {
-                // A notification must never allocate reverse-request state.
                 let Some(original) = id.clone() else {
-                    continue;
+                    return Ok(false);
                 };
                 match serde_json::from_value::<Completion>(params) {
                     Err(_) => result = Err((-32602, "Invalid completion parameters")),
-                    Ok(request) => {
-                        if let Some(doc) = documents.get(&request.uri) {
-                            if doc.version != request.version {
-                                result = Err((-32801, "Document changed"));
-                            } else if let Some(cursor) = offset(&doc.text, &request.position) {
-                                if matches!(request.mode, Mode::Local) {
-                                    result = Err((-32004, "Local provider is planned for phase 3"));
-                                } else if pending.len() >= 128 {
-                                    result = Err((-32005, "Too many pending requests"));
-                                } else {
-                                    serial += 1;
-                                    let reverse_id = format!("core:{serial}");
-                                    // Diagnostic split only; optimized FIM prompts belong to phase 2.
-                                    let prompt = format!(
-                                        "{}\n[CURSOR]\n{}",
-                                        &doc.text[..cursor],
-                                        &doc.text[cursor..]
-                                    );
-                                    write_frame(&mut output, &json!({"jsonrpc":"2.0","id":reverse_id,"method":"requestIdeModel","params":{"requestId":reverse_id,"prompt":prompt,"languageId":doc.language_id,"maxTokens":128}})).await?;
-                                    pending.insert(
-                                        reverse_id,
-                                        Pending {
-                                            original,
-                                            uri: request.uri,
-                                            version: request.version,
-                                            deadline: Instant::now() + Duration::from_secs(10),
-                                        },
-                                    );
-                                    continue;
-                                }
+                    Ok(request) => match self.context.prompt(&request, &self.config) {
+                        Err(error) => result = Err(error),
+                        Ok(prompt) => {
+                            self.cancel_document(&request.uri).await?;
+                            if self.jobs.len() >= 16 {
+                                result = Err((-32005, "Too many pending requests"));
+                            } else if self.jobs.values().any(|job| job.id == original) {
+                                result = Err((-32600, "Request ID already active"));
                             } else {
-                                result = Err((-32602, "Invalid UTF-16 position"));
+                                self.serial += 1;
+                                let key = self.serial;
+                                let cancel = CancellationToken::new();
+                                let config = self.config.clone();
+                                let events = self.events.clone();
+                                let router = HybridRouter {
+                                    local: self.local.clone(),
+                                    ide: IdeBridgeProvider {
+                                        events: events.clone(),
+                                        job: key,
+                                    },
+                                };
+                                self.jobs.insert(
+                                    key,
+                                    Job {
+                                        id: original,
+                                        uri: request.uri,
+                                        version: request.version,
+                                        cancel: cancel.clone(),
+                                    },
+                                );
+                                tokio::spawn(async move {
+                                    let generate = async {
+                                        if !request.explicit {
+                                            tokio::time::sleep(Duration::from_millis(
+                                                config.debounce_ms,
+                                            ))
+                                            .await;
+                                        }
+                                        router
+                                            .generate(request.mode, &prompt, &config, &cancel)
+                                            .await
+                                    };
+                                    let result = tokio::select! {
+                                        biased;
+                                        _ = cancel.cancelled() => Err(Failure::cancelled()),
+                                        result = tokio::time::timeout(Duration::from_millis(config.request_timeout_ms), generate) => result.unwrap_or_else(|_| Err(Failure::new(-32002, "Completion timed out"))),
+                                    };
+                                    let _ = events.send(Event::Finished { job: key, result }).await;
+                                });
+                                return Ok(false);
                             }
-                        } else {
-                            result = Err((-32602, "Unknown document"));
                         }
-                    }
+                    },
                 }
             }
             _ => result = Err((-32601, "Method not found")),
         }
         if let Some(id) = id {
             match result {
-                Ok(value) => {
-                    write_frame(
-                        &mut output,
-                        &json!({"jsonrpc":"2.0","id":id,"result":value}),
-                    )
-                    .await?
-                }
-                Err((code, message)) => error(&mut output, id, code, message).await?,
+                Ok(value) => self.result(id, value).await?,
+                Err((code, message)) => self.error(id, code, message).await?,
             }
         }
+        Ok(false)
+    }
+}
+
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
+    let (events, mut receiver) = mpsc::channel(64);
+    let mut server = Server {
+        output: tokio::io::stdout(),
+        context: ContextEngine::default(),
+        config: Config::default(),
+        initialized: false,
+        jobs: BTreeMap::new(),
+        reverse: HashMap::new(),
+        serial: 0,
+        events,
+        local: Arc::new(LocalProvider::new().map_err(std::io::Error::other)?),
+    };
+    let mut input = BufReader::new(tokio::io::stdin());
+    let mut frame = Box::pin(read_frame(&mut input));
+    loop {
+        tokio::select! {
+            result = &mut frame => {
+                let body = result?;
+                drop(frame);
+                frame = Box::pin(read_frame(&mut input));
+                let Some(body) = body else { break; };
+                if server.message(&body).await? { break; }
+            }
+            Some(event) = receiver.recv() => server.event(event).await?,
+        }
+    }
+    for job in server.jobs.values() {
+        job.cancel.cancel();
     }
     Ok(())
 }

@@ -5,7 +5,7 @@
     "group": { "kind": "build", "isDefault": true }
   }, {
     "label": "build core", "type": "process", "command": "cargo",
-    "args": ["build", "--manifest-path", "core-rust/Cargo.toml"], "problemMatcher": ["$rustc"]
+    "args": ["build", "--manifest-path", "core-rust/Cargo.toml"], "problemMatcher": []
   }, {
     "label": "build extension", "type": "shell", "command": "npm run compile",
     "options": { "cwd": "${workspaceFolder}/extension" }, "problemMatcher": ["$tsc"]

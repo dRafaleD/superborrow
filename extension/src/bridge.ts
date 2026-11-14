@@ -6,6 +6,7 @@ import {
 import {
   Methods, CompletionParams, CompletionResult, UpdateDocumentParams,
   IdeModelParams, IdeModelResult, InitializeResult,
+  EngineConfig,
 } from "./protocol";
 
 export type IdeHandler = (params: IdeModelParams, signal: AbortSignal) => Promise<IdeModelResult>;
@@ -26,7 +27,7 @@ export class CoreBridge {
   private readonly reverse = new Map<string | number, AbortController>();
   private disposed = false;
 
-  constructor(binary: string, handler: IdeHandler, log: (line: string) => void = () => {}) {
+  constructor(binary: string, handler: IdeHandler, log: (line: string) => void = () => {}, private readonly onClose: () => void = () => {}) {
     this.child = spawn(binary, [], { stdio: "pipe", windowsHide: true });
     this.ready = new Promise<void>((resolve, reject) => {
       this.child.once("spawn", resolve);
@@ -60,9 +61,17 @@ export class CoreBridge {
 
   async initialize(): Promise<InitializeResult> {
     await this.ready;
-    const result = await this.rpc.sendRequest<InitializeResult>(Methods.initialize, { protocolVersion: 1 });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const result = await Promise.race([
+      this.rpc.sendRequest<InitializeResult>(Methods.initialize, { protocolVersion: 1 }),
+      new Promise<never>((_, reject) => { timer = setTimeout(() => { this.dispose(); reject(new Error("Core startup timed out")); }, 5000); }),
+    ]).finally(() => { if (timer) clearTimeout(timer); });
     if (result.protocolVersion !== 1) throw new Error("Unsupported core protocol version");
     return result;
+  }
+
+  configure(config: Partial<EngineConfig>): Promise<void> {
+    return this.rpc.sendRequest(Methods.configure, config);
   }
 
   updateDocument(params: UpdateDocumentParams): Promise<void> {
@@ -88,12 +97,13 @@ export class CoreBridge {
 
   async shutdown(): Promise<void> {
     if (this.disposed) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
         this.rpc.sendRequest(Methods.shutdown),
-        new Promise<never>((_, reject) => { const timer = setTimeout(() => reject(new Error("Shutdown timeout")), 1000); timer.unref(); }),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Shutdown timeout")), 1000); }),
       ]);
-    } finally { this.dispose(); }
+    } finally { if (timer) clearTimeout(timer); this.dispose(); }
   }
 
   dispose(): void {
@@ -103,5 +113,6 @@ export class CoreBridge {
     this.reverse.clear();
     this.rpc.dispose();
     this.child.kill();
+    this.onClose();
   }
 }

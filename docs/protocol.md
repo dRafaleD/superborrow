@@ -1,74 +1,87 @@
-# Superborrow protocol v1
+# JSON-RPC application profile v1
 
-Transport: stdin/stdout, JSON-RPC 2.0 objects with VS Code-style framing:
+UTF-8 JSON objects over stdin/stdout with `Content-Length: <bytes>\r\n\r\n`.
+Only protocol messages go to stdout. Headers: 8 KiB maximum. Bodies: 8 MiB
+maximum. Invalid framing closes the stream. Malformed JSON returns `-32700`.
+The profile accepts single objects, named parameters and string/safe-integer
+IDs; no batches. Notifications omit ID and do not receive replies. Forward
+client IDs are numbers; core reverse IDs are `core:<counter>` strings.
 
-```text
-Content-Length: <UTF-8 body byte length>\r\n
-\r\n
-<JSON body>
-```
-
-Stdout is reserved for protocol messages; stderr carries diagnostics. Maximum
-body size is 8 MiB; headers are limited to 8 KiB. Framing violations close the
-process. This is an application-specific JSON-RPC profile, not an LSP server.
-Only individual objects, named parameters and integer/string request IDs are
-supported; batches are outside this profile. Notifications omit `id` and never
-receive replies. Each connection has its own document and request state.
-
-## TS → Rust
-
-| Method | Parameters | Result |
+| Method | Direction | Parameters / result |
 | --- | --- | --- |
-| `initialize` | `{protocolVersion: 1}` | `{protocolVersion: 1, phase: 1}` |
-| `updateDocument` | `{uri, languageId, version, text}` | `null` |
-| `closeDocument` | `{uri}` | `null` |
-| `requestCompletion` | `{uri, version, position: {line, character}, mode}` | `{text, version}` |
-| `cancelRequest` | `{id: originalCompletionRequestId}` | notification |
-| `shutdown` | omitted | `null`, then process exits |
+| initialize | TS → Rust | `{protocolVersion:1}` → `{protocolVersion:1,phase:4,version,capabilities}` |
+| configure | TS → Rust | Config object (omitted keys use defaults) → null |
+| updateDocument | TS → Rust | `{uri,languageId,version,text}` → null |
+| closeDocument | TS → Rust | `{uri}` → null |
+| requestCompletion | TS → Rust | Completion request → completion result |
+| cancelRequest | either | notification `{id}` |
+| requestIdeModel | Rust → TS | Model request → `{text}` |
+| shutdown | TS → Rust | no parameters → null and exit |
 
-Initialize before document/completion operations. Document updates are full
-snapshots; versions must increase until close. Positions use zero-based lines
-and UTF-16 code units, excluding CR/LF. Invalid positions and surrogate splits
-are rejected. `mode` is `local`, `ide` or `hybrid`.
-
-## Rust → TS
-
-`requestIdeModel` request, with string ID `core:<counter>`:
+Configure is a full replacement with defaults, not a merge. It cancels active
+jobs. Initialize must precede document/configuration/completion calls.
 
 ```json
 {
-  "jsonrpc": "2.0",
-  "id": "core:1",
-  "method": "requestIdeModel",
-  "params": {
-    "requestId": "core:1",
-    "prompt": "prefix\n[CURSOR]\nsuffix",
-    "languageId": "typescript",
-    "maxTokens": 128
-  }
+  "localApi": "ollama",
+  "endpoint": "http://127.0.0.1:11434/api/generate",
+  "model": "qwen2.5-coder:7b",
+  "fimFormat": "qwen",
+  "debounceMs": 60,
+  "requestTimeoutMs": 10000,
+  "maxTokens": 128,
+  "maxContextBytes": 24000,
+  "projectContext": "",
+  "ideAvailable": false
 }
 ```
 
-Reply with `{jsonrpc: "2.0", id: "core:1", result: {text: "..."}}`, or a
-JSON-RPC error. `requestId` repeats the envelope ID so the typed handler can
-register cancellation without inspecting transport internals. Rust also sends
-`cancelRequest` notifications with this ID; the TS adapter aborts its handler.
-TS uses numeric forward IDs, a separate namespace. Replies may arrive out of
-order. Cancelling completes the original request with `-32800`; late reverse
-replies are ignored. Reverse calls expire after 10 seconds and are limited to
-128 pending calls. The TS client maps vscode-jsonrpc's cancellation wire method
-to the public `cancelRequest` method.
+`localApi`: llamaInfill / ollama / openAi. `fimFormat`: qwen / codestral.
+Validation limits are defined in config.rs and mirrored in the extension
+manifest. Credentials, queries and fragments are rejected in local endpoints;
+only HTTP loopback hosts are allowed. There is no remote HTTP-provider mode.
 
-Errors: `-32700` parse, `-32600` invalid envelope, `-32601` unknown method,
-`-32602` invalid parameters, `-32603` invalid reverse result, `-32000` not
-initialized, `-32002` bridge timeout, `-32003` IDE unavailable, `-32004` provider
-not implemented, `-32005` pending limit, `-32800` cancelled, `-32801` stale
-document/version. Closing or updating a document invalidates its pending results.
+Completion request:
 
-Phase 1 routes `ide` and `hybrid` through the same bridge for transport testing.
-`local` returns an explicit unimplemented error. The prompt is a diagnostic
-cursor split, not a FIM implementation. The editor adapter deliberately returns
-an unavailable-model error until phase 4. No fabricated model output is shown.
+```json
+{
+  "uri": "file:///example.py", "version": 3,
+  "position": {"line": 1, "character": 11},
+  "mode": "hybrid", "kind": "inline", "explicit": false
+}
+```
 
-References: [JSON-RPC 2.0](https://www.jsonrpc.org/specification),
-[VS Code API](https://code.visualstudio.com/api/references/vscode-api).
+Positions are zero-based UTF-16, exclude CR/LF, and cannot split surrogate pairs.
+`kind` defaults to inline. Next Edit uses `kind:"nextEdit"`, `endPosition` and an
+optional `instruction`. End must follow start. Selected bytes are bounded by
+`min(16384,maxContextBytes/4)`, instruction by `min(2048,maxContextBytes/8)`.
+`explicit:true` skips debounce. Modes: local / ide / hybrid.
+
+Result: `{text,version,provider:"local"|"ide",fallback:boolean,elapsedMs:number}`.
+elapsedMs measures router/inference time, excluding core debounce, editor
+dispatch, context construction and ghost-text rendering. It is not end-to-end
+keystroke latency. An empty completed response is allowed and produces no item.
+
+Reverse request parameters:
+`{requestId,prompt,languageId,maxTokens,kind:"inline"|"nextEdit"}`.
+requestId repeats the envelope ID so the typed TS handler can register custom
+cancellation. The TS client translates vscode-jsonrpc's `$/cancelRequest` to
+`cancelRequest`; core accepts both. IDE replies use `{text}` or JSON-RPC error.
+
+Updates require increasing versions. A change or close invalidates pending
+results immediately. A newer completion on the same document supersedes old
+work; different documents can complete out of order. Late replies are ignored.
+
+| Error | Meaning |
+| --- | --- |
+| -32700 / -32600 / -32601 / -32602 | Parse / envelope / method / parameters |
+| -32603 | Invalid provider output / internal error |
+| -32000 | Initialize first |
+| -32002 | Completion timeout |
+| -32003 | IDE unavailable (its short error message is retained) |
+| -32004 | Local unavailable / failed stream / server error |
+| -32005 | Context or concurrency limit |
+| -32800 | Explicit cancellation / configuration change |
+| -32801 | Obsolete version / superseded request / changed or closed document |
+
+Reference: [JSON-RPC 2.0](https://www.jsonrpc.org/specification).

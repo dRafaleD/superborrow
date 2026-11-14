@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Document {
     pub uri: String,
@@ -9,13 +9,13 @@ pub struct Document {
     pub text: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, serde::Serialize, Debug, PartialEq)]
 pub struct Position {
     pub line: usize,
     pub character: usize,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
     Local,
@@ -29,6 +29,22 @@ pub struct Completion {
     pub version: u32,
     pub position: Position,
     pub mode: Mode,
+    #[serde(default)]
+    pub kind: CompletionKind,
+    #[serde(default, rename = "endPosition")]
+    pub end_position: Option<Position>,
+    #[serde(default)]
+    pub instruction: String,
+    #[serde(default)]
+    pub explicit: bool,
+}
+
+#[derive(Clone, Copy, Default, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum CompletionKind {
+    #[default]
+    Inline,
+    NextEdit,
 }
 
 /// Convert a VS Code UTF-16 position without splitting a surrogate pair.
