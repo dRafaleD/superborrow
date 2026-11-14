@@ -99,6 +99,20 @@ test("document changes immediately cancel obsolete work", { timeout: 10000 }, as
   } finally { await bridge.shutdown(); }
 });
 
+test("identical declarative configuration does not cancel a live completion", { timeout: 10000 }, async () => {
+  let started!: () => void;
+  let finish!: (value: { text: string }) => void;
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  const bridge = await setup(async () => { started(); return new Promise(resolve => { finish = resolve; }); });
+  try {
+    const result = bridge.requestCompletion(request);
+    await ready;
+    await bridge.configure({ debounceMs: 0 });
+    finish({ text: "still valid" });
+    assert.equal((await result).text, "still valid");
+  } finally { await bridge.shutdown(); }
+});
+
 test("reverse timeout and missing executable reject cleanly", { timeout: 10000 }, async () => {
   let aborted = false;
   const bridge = await setup(async (_params, signal) => {
@@ -144,6 +158,22 @@ test("hybrid falls back to IDE after local failure; local mode never does", { ti
     assert.equal(result.text, "ide fallback"); assert.equal(result.fallback, true); assert.equal(result.provider, "ide");
     await assert.rejects(bridge.requestCompletion({ ...request, mode: "local" }), code(-32004));
     assert.equal(ideCalls, 1);
+  } finally { await bridge.shutdown(); await mock.close(); }
+});
+
+test("IDE-priority hybrid uses IDE even for small inline contexts in unsupported AST languages", { timeout: 10000 }, async () => {
+  let httpCalls = 0;
+  const mock = await server((_body, res) => { httpCalls++; res.writeHead(503).end(); });
+  const languages = ["go", "java", "csharp", "cpp", "html", "css", "sql", "shellscript", "json", "plaintext", "custom-new-language"];
+  const bridge = await setup(async params => ({ text: `answer:${params.languageId}` }), { endpoint: mock.endpoint, ideAvailable: true, hybridPreference: "ide" });
+  try {
+    for (let index = 0; index < languages.length; index++) {
+      const languageId = languages[index];
+      await bridge.updateDocument({ ...doc, version: index + 2, languageId });
+      const result = await bridge.requestCompletion({ ...request, version: index + 2, mode: "hybrid", explicit: false });
+      assert.equal(result.text, `answer:${languageId}`); assert.equal(result.provider, "ide"); assert.equal(result.fallback, false);
+    }
+    assert.equal(httpCalls, 0);
   } finally { await bridge.shutdown(); await mock.close(); }
 });
 

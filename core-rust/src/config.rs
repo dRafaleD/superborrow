@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum LocalApi {
     #[default]
@@ -9,7 +9,7 @@ pub enum LocalApi {
     OpenAi,
 }
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum FimFormat {
     #[default]
@@ -17,7 +17,16 @@ pub enum FimFormat {
     Codestral,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum HybridPreference {
+    #[default]
+    Auto,
+    Local,
+    Ide,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Config {
     pub local_api: LocalApi,
@@ -30,6 +39,7 @@ pub struct Config {
     pub max_context_bytes: usize,
     pub project_context: String,
     pub ide_available: bool,
+    pub hybrid_preference: HybridPreference,
 }
 
 impl Default for Config {
@@ -45,6 +55,7 @@ impl Default for Config {
             max_context_bytes: 24_000,
             project_context: String::new(),
             ide_available: false,
+            hybrid_preference: HybridPreference::Auto,
         }
     }
 }

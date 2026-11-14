@@ -1,9 +1,12 @@
 # IDE model adapter v1
 
-The preferred route is `vscode.lm`. If Antigravity does not expose its chat
-models through that API, inspect **Antigravity Tab: Inspect Available Models**.
-An internal model's presence in the UI does not prove that extensions can use it.
-The implementation does not invoke unknown internal commands or scrape sessions.
+In Antigravity 1.11.0, the built-in extension exports a model RPC client. The
+native adapter uses its model catalog and pure model-response method, preserving
+the host's authentication. `ideModel: auto` binds it on startup. A selected
+`antigravity:<slug>` is restored from configuration. Other VS Code hosts can use
+`vscode.lm`; **Select IDE Model** handles their initial selection/consent.
+**Inspect Available Models** lists the native catalog as well as portable models.
+The implementation does not invoke unknown commands or scrape sessions.
 
 An installed extension can opt into this public contract:
 
@@ -39,7 +42,10 @@ adapter discovery. The adapter is responsible for its model's consent, token
 budget and streaming resource cleanup. The bridge enforces response bounds and
 cancellation at the JSON-RPC boundary even if the adapter ignores cancellation.
 
-No adapter for an undocumented Antigravity private service is claimed to work.
+The native adapter is checked against the installed host's exported API, which
+can change across host versions. It does not create its own authenticated HTTP
+client or extract host credentials. The custom adapter contract above is still
+available for other provider extensions.
 Inspect is metadata-only: model IDs, extension IDs/export property names, and
 candidate command IDs. Source content, tokens, credentials and export values
 are not printed.

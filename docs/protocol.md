@@ -18,8 +18,9 @@ client IDs are numbers; core reverse IDs are `core:<counter>` strings.
 | requestIdeModel | Rust → TS | Model request → `{text}` |
 | shutdown | TS → Rust | no parameters → null and exit |
 
-Configure is a full replacement with defaults, not a merge. It cancels active
-jobs. Initialize must precede document/configuration/completion calls.
+Configure is a full replacement with defaults, not a merge. Changed settings
+cancel active jobs; identical settings are a no-op. Initialize must precede
+document/configuration/completion calls. `hybridPreference` is auto / local / ide.
 
 ```json
 {
@@ -32,7 +33,8 @@ jobs. Initialize must precede document/configuration/completion calls.
   "maxTokens": 128,
   "maxContextBytes": 24000,
   "projectContext": "",
-  "ideAvailable": false
+  "ideAvailable": false,
+  "hybridPreference": "auto"
 }
 ```
 

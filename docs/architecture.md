@@ -64,7 +64,10 @@ small inline contexts prefer local; block-start / large-prefix / next-edit
 requests prefer IDE only if the user has selected an available provider. With a
 selected IDE model, local has at most 1.5 seconds or half the request timeout
 before fallback. Other failures can trigger one fallback. Local and IDE modes
-never silently switch providers. An absent IDE selection leaves Hybrid local.
+never silently switch providers. `hybridPreference: ide` makes the available IDE
+model primary for every language; `local` prefers the local server; `auto` keeps
+the context heuristic. An unavailable IDE leaves Hybrid local. Reapplying an
+identical configuration is idempotent and does not cancel a running job.
 
 ## Editor and models
 
@@ -74,10 +77,35 @@ positions; any context/configuration change clears it. Existing suffix overlap
 is removed, and generated newlines follow the document EOL. Suggestions never
 apply edits until the user accepts ghost text through the editor.
 
-IDE discovery and selection run from explicit commands, which is required for
-providers that show an initial consent dialog. Background completions reuse the
-selected model rather than repeatedly querying or asking for access. Selection
-is per extension-host session. Cancellation is bridged to vscode's token.
+In Antigravity, startup activates the installed `google.google-antigravity`
+extension through the normal extension API. Its exported `getRpcClient()`
+provides `getAvailableModels` and `getModelResponse`; the latter is a pure model
+request, not an agent conversation with tools. The catalog is reduced to model
+IDs, names and enabled flags. Authentication and transport remain inside the
+host extension. No session files, tokens or private HTTP transport are used.
+This integration was inspected against host extension 1.11.0 and is not a
+guarantee of a stable public API across future releases; capability checks and
+Hybrid fallback handle incompatibility explicitly.
+
+`ideModel: auto` deterministically prefers an enabled fast text model. Explicit
+`antigravity:<slug>` selections are persisted in editor configuration and
+restored on startup. `vscode:<id>` selections use the portable `vscode.lm` path;
+initial consent/selection still happens through a user command. Discovery does
+not send a generation prompt. Temporarily unavailable host metadata is retried
+after 30 seconds while enabled. Startup/discovery work is coalesced so extension
+activation events cannot repeatedly reconfigure an in-flight completion.
+Cancellation is bridged to AbortSignal / vscode's token.
+
+The host's native inline provider otherwise competes with Superborrow. An
+explicit **Use Superborrow for Tab** command opts into native Tab coordination.
+It uses the host's exported unified state API, with a single-row update to
+`uss-tabPreferences.tabEnabled` (OFF=1, ON=2), preserving the previous value in
+extension global state. No other preference is written. **Restore Antigravity
+Tab** restores that value and pauses Superborrow. This is persistent selection,
+not a temporary per-window lease. Unknown row encodings fail before a write.
+The opt-in is machine-scoped and defaults off in the distributed manifest.
+Acceptance is recorded by the command attached to each Superborrow item; live
+tests cannot pass merely by accepting a different provider's output.
 An explicitly configured extension may export the adapter contract documented
 in ide-adapter.md. Diagnostic discovery reads export descriptors of active
 extensions and lists candidate command IDs; it neither activates all extensions

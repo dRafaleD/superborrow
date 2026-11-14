@@ -2,7 +2,7 @@
   "name": "superborrow",
   "displayName": "Superborrow",
   "description": "Hybrid local and IDE code completion with FIM context and reviewed next edits.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "publisher": "superborrow-dev",
   "engines": {
@@ -34,6 +34,8 @@
       { "command": "superborrow.cycleMode", "title": "Antigravity Tab: Switch Mode" },
       { "command": "superborrow.toggle", "title": "Antigravity Tab: Pause / Resume" },
       { "command": "superborrow.selectModel", "title": "Antigravity Tab: Select IDE Model" },
+      { "command": "superborrow.enableCompositeTab", "title": "Antigravity Tab: Use Superborrow for Tab" },
+      { "command": "superborrow.restoreNativeTab", "title": "Antigravity Tab: Restore Antigravity Tab" },
       { "command": "superborrow.inspectModels", "title": "Antigravity Tab: Inspect Available Models" },
       { "command": "superborrow.nextEdit", "title": "Antigravity Tab: Suggest Next Edit" },
       { "command": "superborrow.showOutput", "title": "Antigravity Tab: Show Diagnostics" }
@@ -43,6 +45,9 @@
       "properties": {
         "superborrow.enabled": { "type": "boolean", "default": true, "description": "Enable inline suggestions and in-memory document context." },
         "superborrow.mode": { "type": "string", "enum": ["hybrid", "local", "ide"], "default": "hybrid", "description": "Local uses only the loopback model. IDE uses the selected model. Hybrid routes by context and can fall back between available providers." },
+        "superborrow.ideModel": { "type": "string", "default": "auto", "scope": "machine", "description": "auto discovers a fast model from the signed-in Antigravity host. A pinned selection is antigravity:<slug> or vscode:<model-id>; use Select IDE Model to choose. Restored on startup." },
+        "superborrow.manageNativeTab": { "type": "boolean", "default": false, "scope": "machine", "description": "Use Superborrow as the Tab provider and turn off the competing native Tab provider. Use the Use Superborrow for Tab / Restore Antigravity Tab commands to switch and preserve the original preference. Only the native tabEnabled preference is changed." },
+        "superborrow.hybridPreference": { "type": "string", "enum": ["auto", "local", "ide"], "default": "auto", "description": "Hybrid primary provider: auto uses context complexity; local prefers local inference; ide prefers the selected IDE model for every language. Failures may fall back to the other available provider." },
         "superborrow.localApi": { "type": "string", "enum": ["llamaInfill", "ollama", "openAi"], "default": "llamaInfill", "scope": "machine", "description": "Local server wire protocol. Set endpoint and model to match." },
         "superborrow.endpoint": { "type": "string", "default": "http://127.0.0.1:8080/infill", "scope": "machine", "description": "Full HTTP loopback endpoint: llama.cpp /infill, Ollama /api/generate, or OpenAI-compatible /v1/completions. Redirects and proxies are disabled." },
         "superborrow.model": { "type": "string", "default": "", "maxLength": 256, "scope": "machine", "description": "Required model name for Ollama / OpenAI-compatible local servers." },
@@ -66,6 +71,7 @@
   "scripts": {
     "package:windows": "node scripts/package-windows.cjs",
     "smoke:local": "npm run compile && node scripts/smoke-local.cjs",
+    "test:host": "npm run compile && node scripts/test-host.cjs",
     "compile": "tsc -p .",
     "test": "npm run compile && node --test dist/test/*.test.js"
   },

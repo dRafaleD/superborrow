@@ -1,0 +1,149 @@
+{
+  "completed": true,
+  "passed": true,
+  "app": "Antigravity IDE",
+  "trusted": true,
+  "cases": [
+    {
+      "name": "python: automatic inline completion",
+      "passed": true,
+      "language": "python",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 0,
+      "outputBytes": 5,
+      "suggestion": "a + b",
+      "elapsedMs": 2003
+    },
+    {
+      "name": "typescript: automatic inline completion",
+      "passed": true,
+      "language": "typescript",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 0,
+      "outputBytes": 8,
+      "suggestion": "a + b;\n}",
+      "elapsedMs": 1606
+    },
+    {
+      "name": "go: automatic inline completion",
+      "passed": true,
+      "language": "go",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 2,
+      "outputBytes": 7,
+      "suggestion": "a + b\n}",
+      "elapsedMs": 3433
+    },
+    {
+      "name": "rust: automatic inline completion",
+      "passed": true,
+      "language": "rust",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 0,
+      "outputBytes": 7,
+      "suggestion": "a + b\n}",
+      "elapsedMs": 1339
+    },
+    {
+      "name": "java: automatic inline completion",
+      "passed": true,
+      "language": "java",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 0,
+      "outputBytes": 8,
+      "suggestion": "a + b;\n}",
+      "elapsedMs": 1811
+    },
+    {
+      "name": "sql: automatic inline completion",
+      "passed": true,
+      "language": "sql",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 0,
+      "outputBytes": 3,
+      "suggestion": "42;",
+      "elapsedMs": 1571
+    },
+    {
+      "name": "html: automatic inline completion",
+      "passed": true,
+      "language": "html",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 0,
+      "outputBytes": 59,
+      "suggestion": "<button type=\"button\" class=\"btn btn-primary\">Save</button>",
+      "elapsedMs": 2020
+    },
+    {
+      "name": "javascript: Turkish comment intent",
+      "passed": true,
+      "language": "javascript",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 0,
+      "outputBytes": 42,
+      "suggestion": "function topla(a, b) {\n    return a + b;\n}",
+      "elapsedMs": 1827
+    },
+    {
+      "name": "python: Turkish comment intent",
+      "passed": true,
+      "language": "python",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 0,
+      "outputBytes": 48,
+      "suggestion": "def add(a: int, b: int) -> int:\n    return a + b",
+      "elapsedMs": 2202
+    },
+    {
+      "name": "css: Turkish comment intent",
+      "passed": true,
+      "language": "css",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 0,
+      "outputBytes": 51,
+      "suggestion": "body {\n  background-color: black;\n  color: white;\n}",
+      "elapsedMs": 1359
+    },
+    {
+      "name": "automatic edit trigger and standard Tab acceptance command",
+      "passed": true,
+      "accepted": true,
+      "text": "def add(a, b):\n    return a + b",
+      "acceptance": {
+        "language": "python",
+        "provider": "ide",
+        "model": "antigravity:gemini-4-hydrogen-low"
+      },
+      "elapsedMs": 2107
+    },
+    {
+      "name": "a second Antigravity model uses the same automatic bridge",
+      "passed": true,
+      "model": "antigravity:claude-sonnet-5-5-low",
+      "suggestion": "a + b",
+      "elapsedMs": 2059
+    }
+  ],
+  "startup": {
+    "connected": true,
+    "enabled": true,
+    "mode": "hybrid",
+    "coreVersion": "0.3.0",
+    "ideAvailable": true,
+    "model": "antigravity:gemini-4-hydrogen-low",
+    "modelLabel": "Gemini 4 Hydrogen (Low)",
+    "nativeTabManaged": false,
+    "acceptedCount": 0,
+    "lastError": ""
+  }
+}

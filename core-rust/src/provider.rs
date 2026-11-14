@@ -1,5 +1,5 @@
 use crate::{
-    config::{Config, FimFormat, LocalApi},
+    config::{Config, FimFormat, HybridPreference, LocalApi},
     context::{Prompt, head},
     protocol::Mode,
 };
@@ -256,7 +256,11 @@ impl HybridRouter {
     ) -> Result<Generated, Failure> {
         let start = Instant::now();
         let primary_ide = matches!(mode, Mode::Ide)
-            || (matches!(mode, Mode::Hybrid) && prompt.complex && config.ide_available);
+            || (matches!(mode, Mode::Hybrid)
+                && config.ide_available
+                && (matches!(config.hybrid_preference, HybridPreference::Ide)
+                    || (matches!(config.hybrid_preference, HybridPreference::Auto)
+                        && prompt.complex)));
         let mut fallback = false;
         let first = if primary_ide {
             self.ide.complete(prompt, config, cancel).await

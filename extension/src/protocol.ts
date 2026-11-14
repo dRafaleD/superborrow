@@ -37,6 +37,7 @@ export interface EngineConfig {
   maxContextBytes: number;
   projectContext: string;
   ideAvailable: boolean;
+  hybridPreference: "auto" | "local" | "ide";
 }
 export const Methods = {
   initialize: "initialize",

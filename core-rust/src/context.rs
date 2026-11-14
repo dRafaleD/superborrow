@@ -331,7 +331,7 @@ impl ContextEngine {
         let task = if next_edit {
             "Replace the selected code using the instruction above. Return only replacement code. Do not include surrounding code or markdown.".to_string()
         } else {
-            "Fill the cursor gap. Return only missing code, no explanation or markdown. Do not repeat prefix or suffix.".to_string()
+            "Fill the cursor gap in the ACTIVE file only. The exact active-file contents are <PRE> and <SUF> below; open symbols and history above are auxiliary references, not the file you are continuing. Use nearby comments as implementation intent, in the user's language. If the active prefix contains only a comment requesting a function, return a complete function declaration with its body, not just a return statement. Complete only the requested code unit; omit example calls and tests unless requested. Return only missing code, no explanation or markdown. Do not repeat prefix or suffix.".to_string()
         };
         let chat = format!(
             "{context}\n{task}\nLanguage: {}\n<PRE>{prefix}</PRE>\n<SUF>{suffix}</SUF>",

@@ -208,6 +208,12 @@ impl Server {
             "configure" => match serde_json::from_value::<Config>(params) {
                 Ok(config) => match config.validate() {
                     Ok(()) => {
+                        if config == self.config {
+                            if let Some(id) = id {
+                                self.result(id, Value::Null).await?;
+                            }
+                            return Ok(false);
+                        }
                         let keys: Vec<_> = self.jobs.keys().copied().collect();
                         for key in keys {
                             self.cancel(key, -32800, "Configuration changed").await?;
