@@ -53,6 +53,12 @@ and continue on the next line to receive a proposed function, then accept it wit
 Tab. Python `#`, SQL `--`, CSS/HTML comments and other natural-language comments
 use the same automatic flow. Suggestions are never auto-applied.
 
+State the intended behavior, for example `# create a function that adds two
+numbers` in Python. A bare `create function` does not define behavior. The
+completion prompt requests no invented scaffolds for such ambiguous requests,
+and working bodies rather than `pass`/TODO when behavior is specified. Explicit
+skeleton requests are still supported. Model output still requires review.
+
 With `hybridPreference: ide`, the IDE model is primary for every language and
 the local server is a fallback. `auto` uses the context heuristic; `local` prefers
 local inference. The native model adapter was verified against Antigravity

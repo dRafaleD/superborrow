@@ -3,7 +3,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '../..');
 const report = path.join(root, 'packages', `host-live-${Date.now()}.json`);
-const profile = path.join(root, 'packages', 'host-live-profile');
+const profile = path.join(root, 'packages', `host-live-profile-${Date.now()}`);
 const ide = process.env.SUPERBORROW_IDE || path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Antigravity IDE', 'Antigravity IDE.exe');
 const cli = path.join(path.dirname(ide), 'resources', 'app', 'out', 'cli.js');
 fs.mkdirSync(path.join(profile, 'User'), { recursive: true });
@@ -12,8 +12,8 @@ fs.writeFileSync(path.join(profile, 'User', 'settings.json'), JSON.stringify({
   'superborrow.corePath': path.join(root, 'core-rust', 'target', 'debug', process.platform === 'win32' ? 'superborrow-core.exe' : 'superborrow-core'),
   'superborrow.enabled': true, 'superborrow.mode': 'hybrid', 'superborrow.hybridPreference': 'ide', 'superborrow.ideModel': 'auto',
   'superborrow.localApi': 'ollama', 'superborrow.endpoint': 'http://127.0.0.1:11434/api/generate', 'superborrow.model': 'qwen2.5-coder:7b',
-  'superborrow.maxTokens': 64, 'superborrow.maxContextBytes': 4096, 'superborrow.requestTimeoutMs': 45000, 'superborrow.debounceMs': 10,
-  'editor.inlineSuggest.enabled': true, 'editor.quickSuggestions': false
+  'superborrow.maxTokens': 128, 'superborrow.maxContextBytes': 24000, 'superborrow.requestTimeoutMs': 10000, 'superborrow.debounceMs': 60,
+  'editor.inlineSuggest.enabled': true
 }, null, 2));
 const child = spawn(ide, [cli, '--user-data-dir', profile, '--extensionDevelopmentPath', path.join(root, 'extension'), '--extensionTestsPath', path.join(root, 'extension', 'dist', 'test', 'host', 'live.js'), '--new-window', '--skip-welcome', '--skip-release-notes', '--wait'], {
   windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', SUPERBORROW_LIVE_REPORT: report }, stdio: ['ignore', 'pipe', 'pipe']

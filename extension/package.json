@@ -2,7 +2,7 @@
   "name": "superborrow",
   "displayName": "Superborrow",
   "description": "Hybrid local and IDE code completion with FIM context and reviewed next edits.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "publisher": "superborrow-dev",
   "engines": {

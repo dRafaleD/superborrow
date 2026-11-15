@@ -1,7 +1,7 @@
 # Superborrow
 
 Antigravity IDE / VS Code için Rust bağlam motoru ve TypeScript istemcisiyle
-yerel veya IDE modeli kullanan hibrit kod tamamlama. Sürüm **0.3.0**.
+yerel veya IDE modeli kullanan hibrit kod tamamlama. Sürüm **0.3.1**.
 
 ## Neler çalışıyor?
 
@@ -36,7 +36,7 @@ npm --prefix extension test
 cargo test --locked --manifest-path core-rust/Cargo.toml
 cargo clippy --locked --manifest-path core-rust/Cargo.toml --all-targets -- -D warnings
 npm --prefix extension run package:windows
-& "$env:LOCALAPPDATA\Programs\Antigravity IDE\bin\antigravity-ide.cmd" --install-extension "$PWD\packages\superborrow-0.3.0-win32-x64.vsix" --force
+& "$env:LOCALAPPDATA\Programs\Antigravity IDE\bin\antigravity-ide.cmd" --install-extension "$PWD\packages\superborrow-0.3.1-win32-x64.vsix" --force
 ```
 
 Paket Windows x64 Rust çekirdeğini içerir. Kurulumdan sonra **Developer: Reload
@@ -91,6 +91,12 @@ AST desteği olmayan Go, Java, C#, C++, SQL, HTML, CSS ve diğer diller metin ba
 üzerinden aynı otomatik akışı kullanır. Sonuç kalitesi modele ve bağlama bağlıdır.
 Yorum satırları da niyet olarak değerlendirilir: JS/TS `//`, Python `#`, SQL `--`,
 CSS `/* */` ve HTML yorumları için ayrı bir komut gerekmez.
+
+Yorum fonksiyonun ne yapacağını belirtmeli: Python'da
+`# iki sayıyı toplayan bir fonksiyon oluştur` yazıp alt satıra geç.
+Sadece `create function` davranış belirtmez; modelin rastgele boş fonksiyonlar
+üretmek yerine öneri vermemesi istenir. Açık bir davranış isteğinde `pass`, TODO
+ve boş gövde yerine uygulama istenir; açıkça istenen iskeletler desteklenir.
 
 ## Komutlar
 

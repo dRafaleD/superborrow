@@ -1,4 +1,27 @@
-# Validation evidence — 0.3.0
+# Validation evidence
+
+## Comment implementation regression — 0.3.1
+
+The earlier comment smoke assertion checked for `def`/`function`, so a body
+containing only `pass` could pass it. The suite now requires an addition return
+expression, one function declaration, and no placeholder for an addition request.
+It also covers Python requests using `//`, older unrelated `pass` functions in
+the active file, suppression of the unspecified `//create function` request,
+and automatic comment-newline triggering with Superborrow's own acceptance
+callback. The host profile uses default context/debounce/timeout and IntelliSense
+settings instead of shortened context and disabled quick suggestions.
+
+The final 0.3.1 core passed 16 real-account checks; see the
+[synthetic report](evidence/antigravity-comment-regression-2026-11-15.json).
+Direct factory checks keep automatic inline rendering off to avoid competing
+invocations, then re-enable it for the two real editor acceptance checks.
+Every run uses a separate test profile; factory fixtures remain unopened.
+This is prompt guidance backed by regression
+examples, not a guarantee of model correctness or a general semantic validator.
+An unspecified function request cannot establish the desired implementation;
+the user must state its behavior.
+
+## Original 0.3.0 evidence
 
 ## Local Windows checks — 2026-11-15
 
