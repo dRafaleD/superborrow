@@ -1,0 +1,72 @@
+{
+  "completed": true,
+  "passed": false,
+  "app": "Antigravity IDE",
+  "trusted": true,
+  "cases": [
+    {
+      "name": "python: automatic inline completion",
+      "passed": true,
+      "language": "python",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 1,
+      "outputBytes": 5,
+      "suggestion": "a + b",
+      "elapsedMs": 4533
+    },
+    {
+      "name": "typescript: automatic inline completion",
+      "passed": true,
+      "language": "typescript",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 1,
+      "outputBytes": 8,
+      "suggestion": "a + b;\n}",
+      "elapsedMs": 3759
+    },
+    {
+      "name": "go: automatic inline completion",
+      "passed": true,
+      "language": "go",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 1,
+      "outputBytes": 7,
+      "suggestion": "a + b\n}",
+      "elapsedMs": 2794
+    },
+    {
+      "name": "rust: automatic inline completion",
+      "passed": true,
+      "language": "rust",
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 0,
+      "outputBytes": 7,
+      "suggestion": "a + b\n}",
+      "elapsedMs": 7411
+    },
+    {
+      "name": "java: automatic inline completion",
+      "passed": false,
+      "error": "No java suggestion: {\"connected\":true,\"enabled\":true,\"mode\":\"ide\",\"coreVersion\":\"0.3.1\",\"ideAvailable\":true,\"model\":\"antigravity:gemini-4-hydrogen-low\",\"modelLabel\":\"Gemini 4 Hydrogen (Low)\",\"nativeTabManaged\":true,\"lastProvider\":\"ide\",\"lastLatencyMs\":7340,\"lastInlineLatencyMs\":10010.27,\"continuationHits\":0,\"modelRequests\":9,\"lastDiscardReason\":\"provider error -32002: Completion timed out\",\"lastCancellationReason\":\"active editor changed\",\"acceptedCount\":0,\"lastError\":\"Completion timed out\"}"
+    }
+  ],
+  "startup": {
+    "connected": true,
+    "enabled": true,
+    "mode": "hybrid",
+    "coreVersion": "0.3.1",
+    "ideAvailable": true,
+    "model": "antigravity:gemini-4-hydrogen-low",
+    "modelLabel": "Gemini 4 Hydrogen (Low)",
+    "nativeTabManaged": false,
+    "continuationHits": 0,
+    "modelRequests": 0,
+    "acceptedCount": 0,
+    "lastError": ""
+  },
+  "error": "No java suggestion: {\"connected\":true,\"enabled\":true,\"mode\":\"ide\",\"coreVersion\":\"0.3.1\",\"ideAvailable\":true,\"model\":\"antigravity:gemini-4-hydrogen-low\",\"modelLabel\":\"Gemini 4 Hydrogen (Low)\",\"nativeTabManaged\":true,\"lastProvider\":\"ide\",\"lastLatencyMs\":7340,\"lastInlineLatencyMs\":10010.27,\"continuationHits\":0,\"modelRequests\":9,\"lastDiscardReason\":\"provider error -32002: Completion timed out\",\"lastCancellationReason\":\"active editor changed\",\"acceptedCount\":0,\"lastError\":\"Completion timed out\"}"
+}

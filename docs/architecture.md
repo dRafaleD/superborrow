@@ -1,5 +1,15 @@
 # Architecture and decisions
 
+Since 0.3.7 the extension can supplement open-document context with up to four
+direct relative TS/JS imports from the trusted workspace. Canonical paths,
+source extensions, exclusion rules and a 64 KB per-file cap bound reads; no
+editor is opened and no code or package resolver runs. Request-scoped references
+are parsed into the existing symbol-ranking path without entering persistent
+document/history storage. Open buffers take priority. A two-second/eight-entry
+read cache and tracked source-file events support reuse and invalidation.
+`superborrow.importContext:false` disables supplementary reads. This is source
+context for the selected model, not local AI inference.
+
 The TypeScript extension owns editor state and model access. Rust owns bounded
 context, routing and local HTTP. The wire is a bidirectional JSON-RPC profile
 over Content-Length-framed stdin/stdout. This is not an LSP implementation.
@@ -92,7 +102,7 @@ Hybrid fallback handle incompatibility explicitly.
 restored on startup. `vscode:<id>` selections use the portable `vscode.lm` path;
 initial consent/selection still happens through a user command. Discovery does
 not send a generation prompt. Temporarily unavailable host metadata is retried
-after 30 seconds while enabled. Startup/discovery work is coalesced so extension
+with exponential backoff from 1.5 to 30 seconds while enabled. Startup/discovery work is coalesced so extension
 activation events cannot repeatedly reconfigure an in-flight completion.
 Cancellation is bridged to AbortSignal / vscode's token.
 
@@ -125,3 +135,28 @@ prediction, multi-file edits and permanent repository indexing are future work.
 - [VS Code model API](https://code.visualstudio.com/api/extension-guides/ai/language-model): selection, user consent, streaming and cancellation.
 - [Tree-sitter edit](https://docs.rs/tree-sitter/latest/tree_sitter/struct.Tree.html#method.edit): byte/point edits before incremental reparse.
 - [Qwen FIM tokenizer](https://huggingface.co/Qwen/Qwen2.5-Coder-7B/blob/main/tokenizer_config.json) and [Codestral tokenizer](https://huggingface.co/mistralai/Codestral-22B-v0.1): raw FIM token conventions.
+
+## Relevant context in 0.3.3
+
+Document updates cache bounded declaration/type/import summaries. The request
+path ranks those cached summaries by cursor identifiers and imported module hints,
+including exported wrappers, class APIs and distant declarations in the active
+file. Nearby editor errors/warnings are bounded advisory request data. Changes
+to relevant diagnostics invalidate cached/in-flight suggestions and coalesce a
+retry only if the same enabled editor/version/cursor remains active. Prompt byte
+budgets include the chat task and framing. See validation.md for measured
+before/after field-selection accuracy and remaining latency limits.
+
+## In-flight typing in 0.3.4
+
+IDE-only inline completion uses capability-gated, read-only prompt preparation
+and client-owned generation. DocumentSync makes synchronization/preparation
+atomic, while the core continues to accept later document updates. A bounded
+client session races the oldest still-compatible prediction with a fresh one,
+then checks the complete insertion history and exact generated prefix before
+reusing old output. Other edits or semantic context changes cancel the session.
+Nonparticipating virtual-document changes and stale off-caret requests do not
+interrupt the actual code prediction. `speculativeTyping:false` restores the
+version-bound path. At most two client jobs and finite deadlines bound speculative
+work; remote cancellation latency and model quota use remain provider-dependent.
+See validation.md for both useful reuse and the limits of the small live sample.

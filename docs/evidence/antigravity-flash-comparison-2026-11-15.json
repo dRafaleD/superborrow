@@ -1,0 +1,404 @@
+{
+  "completed": true,
+  "passed": true,
+  "scope": "model-comparison",
+  "cases": [
+    {
+      "name": "expression",
+      "round": 0,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1987,
+      "providerMs": 1985,
+      "promptHash": "b018a973c4d3efa11b7285fcc81e4bc5399781dc85a9cc8dba723c962eaa7c47",
+      "quality": {
+        "passed": true,
+        "inputPairs": 6
+      },
+      "suggestion": "a + b"
+    },
+    {
+      "name": "middle-gap",
+      "round": 0,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1452,
+      "providerMs": 1451,
+      "promptHash": "a95a73d8d41288321f2bcc90df07fb912b23a45a04b47e014c7e8dfbf32663ab",
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "b"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 0,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1881,
+      "providerMs": 1879,
+      "promptHash": "6cd484e07d72515b5693263f65a2f6bc68a800550dd1ae0b20420d1033402ce5",
+      "quality": {
+        "passed": true,
+        "inputPairs": 6
+      },
+      "suggestion": "def max_of_two(a, b):\n    return a if a > b else b"
+    },
+    {
+      "name": "exported-type-field",
+      "round": 0,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1839,
+      "providerMs": 1837,
+      "promptHash": "aa318b582bfb748068eb871ab5e56fc81cb86a592ece330cf41bb50fb779b887",
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "tenderCode"
+    },
+    {
+      "name": "abstention",
+      "round": 0,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1649,
+      "providerMs": 1648,
+      "promptHash": "c66f0ac985f33e4db24885f8923d787dc974c0dbd04f1892a00160b3c9b89a2c",
+      "quality": {
+        "passed": true
+      },
+      "suggestion": ""
+    },
+    {
+      "name": "expression",
+      "round": 0,
+      "model": "gemini-3.8-flash-low",
+      "passed": true,
+      "elapsedMs": 2639,
+      "providerMs": 2637,
+      "promptHash": "b018a973c4d3efa11b7285fcc81e4bc5399781dc85a9cc8dba723c962eaa7c47",
+      "quality": {
+        "passed": true,
+        "inputPairs": 6
+      },
+      "suggestion": "a + b"
+    },
+    {
+      "name": "middle-gap",
+      "round": 0,
+      "model": "gemini-3.8-flash-low",
+      "passed": true,
+      "elapsedMs": 2636,
+      "providerMs": 2634,
+      "promptHash": "a95a73d8d41288321f2bcc90df07fb912b23a45a04b47e014c7e8dfbf32663ab",
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "b"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 0,
+      "model": "gemini-3.8-flash-low",
+      "passed": true,
+      "elapsedMs": 5558,
+      "providerMs": 5557,
+      "promptHash": "6cd484e07d72515b5693263f65a2f6bc68a800550dd1ae0b20420d1033402ce5",
+      "quality": {
+        "passed": true,
+        "inputPairs": 6
+      },
+      "suggestion": "def buyuk_olan(a, b):\n    return max(a, b)"
+    },
+    {
+      "name": "exported-type-field",
+      "round": 0,
+      "model": "gemini-3.8-flash-low",
+      "passed": true,
+      "elapsedMs": 2187,
+      "providerMs": 2186,
+      "promptHash": "aa318b582bfb748068eb871ab5e56fc81cb86a592ece330cf41bb50fb779b887",
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "tenderCode"
+    },
+    {
+      "name": "abstention",
+      "round": 0,
+      "model": "gemini-3.8-flash-low",
+      "passed": false,
+      "elapsedMs": 6015,
+      "promptHash": "c66f0ac985f33e4db24885f8923d787dc974c0dbd04f1892a00160b3c9b89a2c",
+      "error": "Completion timed out"
+    },
+    {
+      "name": "expression",
+      "round": 1,
+      "model": "gemini-3.8-flash-low",
+      "passed": false,
+      "elapsedMs": 6020,
+      "promptHash": "dac03e158daaa07a12d1c21b022b9e2c66fdde6530719fffadbdae2b0971e8c4",
+      "error": "Completion timed out"
+    },
+    {
+      "name": "middle-gap",
+      "round": 1,
+      "model": "gemini-3.8-flash-low",
+      "passed": false,
+      "elapsedMs": 6016,
+      "promptHash": "eaff8b821a469e61123f49844e44db9f3bb104ec4047908343459cfda55b81d4",
+      "error": "Completion timed out"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 1,
+      "model": "gemini-3.8-flash-low",
+      "passed": true,
+      "elapsedMs": 3207,
+      "providerMs": 3206,
+      "promptHash": "4f8ef6bae47ecf250940c1de3bf96f0909b1652e4838af65fd78f0f758f9abcd",
+      "quality": {
+        "passed": true,
+        "inputPairs": 6
+      },
+      "suggestion": "def buyuk_olani_bul(sayi1, sayi2):\n    return sayi1 if sayi1 > sayi2 else sayi2"
+    },
+    {
+      "name": "exported-type-field",
+      "round": 1,
+      "model": "gemini-3.8-flash-low",
+      "passed": true,
+      "elapsedMs": 2010,
+      "providerMs": 2008,
+      "promptHash": "ad2eff66c6f9f8cc40237d614570db6cc9b38c159b13af465b1cfc837cbabcf2",
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "tenderCode"
+    },
+    {
+      "name": "abstention",
+      "round": 1,
+      "model": "gemini-3.8-flash-low",
+      "passed": true,
+      "elapsedMs": 1964,
+      "providerMs": 1962,
+      "promptHash": "196805d51dfcd99d95bd46c11de8a75925d9f618cc077387024651a3b5a0cc57",
+      "quality": {
+        "passed": true
+      },
+      "suggestion": ""
+    },
+    {
+      "name": "expression",
+      "round": 1,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1784,
+      "providerMs": 1783,
+      "promptHash": "dac03e158daaa07a12d1c21b022b9e2c66fdde6530719fffadbdae2b0971e8c4",
+      "quality": {
+        "passed": true,
+        "inputPairs": 6
+      },
+      "suggestion": "a + b"
+    },
+    {
+      "name": "middle-gap",
+      "round": 1,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 2072,
+      "providerMs": 2070,
+      "promptHash": "eaff8b821a469e61123f49844e44db9f3bb104ec4047908343459cfda55b81d4",
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "b"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 1,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1879,
+      "providerMs": 1877,
+      "promptHash": "4f8ef6bae47ecf250940c1de3bf96f0909b1652e4838af65fd78f0f758f9abcd",
+      "quality": {
+        "passed": true,
+        "inputPairs": 6
+      },
+      "suggestion": "def buyuk_olan(a, b):\n    return a if a > b else b"
+    },
+    {
+      "name": "exported-type-field",
+      "round": 1,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1674,
+      "providerMs": 1672,
+      "promptHash": "ad2eff66c6f9f8cc40237d614570db6cc9b38c159b13af465b1cfc837cbabcf2",
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "tenderCode"
+    },
+    {
+      "name": "abstention",
+      "round": 1,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1544,
+      "providerMs": 1542,
+      "promptHash": "196805d51dfcd99d95bd46c11de8a75925d9f618cc077387024651a3b5a0cc57",
+      "quality": {
+        "passed": true
+      },
+      "suggestion": ""
+    }
+  ],
+  "summaries": [
+    {
+      "model": "gemini-4-hydrogen-low",
+      "label": "Gemini 4 Hydrogen (Low)",
+      "passed": 10,
+      "total": 10,
+      "timeouts": 0,
+      "medianAllAttemptsMs": 1811.5,
+      "maxAttemptMs": 2072,
+      "medianSuccessfulMs": 1811.5,
+      "maxSuccessfulMs": 2072
+    },
+    {
+      "model": "gemini-3.8-flash-low",
+      "label": "Gemini 3.8 Flash (Low)",
+      "passed": 7,
+      "total": 10,
+      "timeouts": 3,
+      "medianAllAttemptsMs": 2923,
+      "maxAttemptMs": 6020,
+      "medianSuccessfulMs": 2636,
+      "maxSuccessfulMs": 5558
+    }
+  ],
+  "error": "",
+  "availableModels": [
+    {
+      "slug": "claude-opus-5-5-high",
+      "label": "Claude Opus 5.5 (High)"
+    },
+    {
+      "slug": "claude-opus-5-5-low",
+      "label": "Claude Opus 5.5 (Low)"
+    },
+    {
+      "slug": "claude-opus-5-5-medium",
+      "label": "Claude Opus 5.5 (Medium)"
+    },
+    {
+      "slug": "claude-sonnet-5-5-high",
+      "label": "Claude Sonnet 5.5 (High)"
+    },
+    {
+      "slug": "claude-sonnet-5-5-low",
+      "label": "Claude Sonnet 5.5 (Low)"
+    },
+    {
+      "slug": "claude-sonnet-5-5-medium",
+      "label": "Claude Sonnet 5.5 (Medium)"
+    },
+    {
+      "slug": "gemini-2.5-pro",
+      "label": "Gemini 2.5 Pro"
+    },
+    {
+      "slug": "gemini-3-flash",
+      "label": "Gemini 3 Flash"
+    },
+    {
+      "slug": "gemini-3.1-flash-image",
+      "label": "Gemini 3.1 Flash Image"
+    },
+    {
+      "slug": "gemini-3.1-flash-lite",
+      "label": "Gemini 3.1 Flash Lite"
+    },
+    {
+      "slug": "gemini-2.5-flash",
+      "label": "Gemini 3.5 Flash Lite"
+    },
+    {
+      "slug": "gemini-2.5-flash-lite",
+      "label": "Gemini 3.5 Flash Lite"
+    },
+    {
+      "slug": "gemini-2.5-flash-thinking",
+      "label": "Gemini 3.5 Flash Lite"
+    },
+    {
+      "slug": "gemini-3.5-flash-lite",
+      "label": "Gemini 3.5 Flash Lite"
+    },
+    {
+      "slug": "gemini-3.8-flash-high",
+      "label": "Gemini 3.8 Flash (High)"
+    },
+    {
+      "slug": "gemini-3.8-flash-low",
+      "label": "Gemini 3.8 Flash (Low)"
+    },
+    {
+      "slug": "gemini-3.8-flash-medium",
+      "label": "Gemini 3.8 Flash (Medium)"
+    },
+    {
+      "slug": "gemini-4-argon-high",
+      "label": "Gemini 4 Argon (High)"
+    },
+    {
+      "slug": "gemini-4-argon-low",
+      "label": "Gemini 4 Argon (Low)"
+    },
+    {
+      "slug": "gemini-4-argon-medium",
+      "label": "Gemini 4 Argon (Medium)"
+    },
+    {
+      "slug": "gemini-4-hydrogen-high",
+      "label": "Gemini 4 Hydrogen (High)"
+    },
+    {
+      "slug": "gemini-4-hydrogen-low",
+      "label": "Gemini 4 Hydrogen (Low)"
+    },
+    {
+      "slug": "gemini-4-hydrogen-medium",
+      "label": "Gemini 4 Hydrogen (Medium)"
+    },
+    {
+      "slug": "gemini-flash-worker-agy",
+      "label": "Gemini 4 Hydrogen (Orchestrator)"
+    },
+    {
+      "slug": "gemini-4-hydrogen-xhigh",
+      "label": "Gemini 4 Hydrogen (XHigh)"
+    },
+    {
+      "slug": "gpt-oss-120b-medium",
+      "label": "GPT-OSS 120B (Medium)"
+    },
+    {
+      "slug": "gemini-pro-orchestrator-g1-pro",
+      "label": "Orchestrator (Argon)"
+    }
+  ],
+  "selectedModels": [
+    "gemini-4-hydrogen-low",
+    "gemini-3.8-flash-low"
+  ],
+  "coreVersion": "0.3.4",
+  "repeatPrompts": false,
+  "backgroundModelRequests": 0
+}

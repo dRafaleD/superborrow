@@ -1,0 +1,44 @@
+{
+  "completed": true,
+  "passed": false,
+  "scope": "pipeline",
+  "app": "Antigravity IDE",
+  "trusted": true,
+  "cases": [
+    {
+      "name": "typing through a real model completion reuses its remainder without inference",
+      "passed": true,
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 1,
+      "extraModelRequests": 0,
+      "continuationLatenciesMs": [
+        0.62,
+        0.31,
+        0.31
+      ],
+      "elapsedMs": 2854
+    },
+    {
+      "name": "overlapping editor callers share one real model request and isolate cancellation",
+      "passed": false,
+      "error": "{\"connected\":true,\"enabled\":true,\"mode\":\"ide\",\"coreVersion\":\"0.3.2\",\"ideAvailable\":true,\"model\":\"antigravity:gemini-4-hydrogen-low\",\"modelLabel\":\"Gemini 4 Hydrogen (Low)\",\"nativeTabManaged\":true,\"lastProvider\":\"ide\",\"lastLatencyMs\":1785,\"lastInlineLatencyMs\":10023.64,\"continuationHits\":3,\"sharedRequests\":8,\"modelRequests\":8,\"lastDiscardReason\":\"provider error -32002: Completion timed out\",\"acceptedCount\":0,\"lastError\":\"Completion timed out\"}"
+    }
+  ],
+  "startup": {
+    "connected": true,
+    "enabled": true,
+    "mode": "ide",
+    "coreVersion": "0.3.2",
+    "ideAvailable": true,
+    "model": "antigravity:gemini-4-hydrogen-low",
+    "modelLabel": "Gemini 4 Hydrogen (Low)",
+    "nativeTabManaged": false,
+    "continuationHits": 0,
+    "sharedRequests": 0,
+    "modelRequests": 0,
+    "acceptedCount": 0,
+    "lastError": ""
+  },
+  "error": "{\"connected\":true,\"enabled\":true,\"mode\":\"ide\",\"coreVersion\":\"0.3.2\",\"ideAvailable\":true,\"model\":\"antigravity:gemini-4-hydrogen-low\",\"modelLabel\":\"Gemini 4 Hydrogen (Low)\",\"nativeTabManaged\":true,\"lastProvider\":\"ide\",\"lastLatencyMs\":1785,\"lastInlineLatencyMs\":10023.64,\"continuationHits\":3,\"sharedRequests\":8,\"modelRequests\":8,\"lastDiscardReason\":\"provider error -32002: Completion timed out\",\"acceptedCount\":0,\"lastError\":\"Completion timed out\"}"
+}

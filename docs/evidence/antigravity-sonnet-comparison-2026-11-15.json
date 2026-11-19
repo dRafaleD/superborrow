@@ -1,0 +1,371 @@
+{
+  "completed": true,
+  "passed": false,
+  "scope": "model-comparison",
+  "cases": [
+    {
+      "name": "expression",
+      "round": 0,
+      "model": "gemini-4-hydrogen-low",
+      "passed": false,
+      "elapsedMs": 6006,
+      "error": "Completion timed out"
+    },
+    {
+      "name": "middle-gap",
+      "round": 0,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1861,
+      "providerMs": 1860,
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "b"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 0,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 2606,
+      "providerMs": 2605,
+      "quality": {
+        "passed": true,
+        "inputPairs": 6
+      },
+      "suggestion": "def buyuk_olan(a, b):\n    return a if a > b else b"
+    },
+    {
+      "name": "exported-type-field",
+      "round": 0,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 2145,
+      "providerMs": 2143,
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "tenderCode"
+    },
+    {
+      "name": "abstention",
+      "round": 0,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 5098,
+      "providerMs": 5097,
+      "quality": {
+        "passed": true
+      },
+      "suggestion": ""
+    },
+    {
+      "name": "expression",
+      "round": 0,
+      "model": "claude-sonnet-5-5-low",
+      "passed": false,
+      "elapsedMs": 6007,
+      "error": "Completion timed out"
+    },
+    {
+      "name": "middle-gap",
+      "round": 0,
+      "model": "claude-sonnet-5-5-low",
+      "passed": true,
+      "elapsedMs": 2164,
+      "providerMs": 2162,
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "b"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 0,
+      "model": "claude-sonnet-5-5-low",
+      "passed": false,
+      "elapsedMs": 6013,
+      "error": "Completion timed out"
+    },
+    {
+      "name": "exported-type-field",
+      "round": 0,
+      "model": "claude-sonnet-5-5-low",
+      "passed": true,
+      "elapsedMs": 3601,
+      "providerMs": 3599,
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "tenderCode"
+    },
+    {
+      "name": "abstention",
+      "round": 0,
+      "model": "claude-sonnet-5-5-low",
+      "passed": true,
+      "elapsedMs": 1492,
+      "providerMs": 1490,
+      "quality": {
+        "passed": true
+      },
+      "suggestion": ""
+    },
+    {
+      "name": "expression",
+      "round": 1,
+      "model": "claude-sonnet-5-5-low",
+      "passed": true,
+      "elapsedMs": 846,
+      "providerMs": 845,
+      "quality": {
+        "passed": true,
+        "inputPairs": 6
+      },
+      "suggestion": "a + b"
+    },
+    {
+      "name": "middle-gap",
+      "round": 1,
+      "model": "claude-sonnet-5-5-low",
+      "passed": false,
+      "elapsedMs": 6007,
+      "error": "Completion timed out"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 1,
+      "model": "claude-sonnet-5-5-low",
+      "passed": true,
+      "elapsedMs": 5277,
+      "providerMs": 5275,
+      "quality": {
+        "passed": true,
+        "inputPairs": 6
+      },
+      "suggestion": "def buyuk_olan(a, b):\n    if a > b:\n        return a\n    return b"
+    },
+    {
+      "name": "exported-type-field",
+      "round": 1,
+      "model": "claude-sonnet-5-5-low",
+      "passed": true,
+      "elapsedMs": 930,
+      "providerMs": 929,
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "tenderCode"
+    },
+    {
+      "name": "abstention",
+      "round": 1,
+      "model": "claude-sonnet-5-5-low",
+      "passed": true,
+      "elapsedMs": 1700,
+      "providerMs": 1698,
+      "quality": {
+        "passed": true
+      },
+      "suggestion": ""
+    },
+    {
+      "name": "expression",
+      "round": 1,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 3195,
+      "providerMs": 3194,
+      "quality": {
+        "passed": true,
+        "inputPairs": 6
+      },
+      "suggestion": "a + b"
+    },
+    {
+      "name": "middle-gap",
+      "round": 1,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1313,
+      "providerMs": 1312,
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "b"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 1,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1979,
+      "providerMs": 1977,
+      "quality": {
+        "passed": true,
+        "inputPairs": 6
+      },
+      "suggestion": "def buyuk_olani_dondur(a, b):\n    return max(a, b)"
+    },
+    {
+      "name": "exported-type-field",
+      "round": 1,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1630,
+      "providerMs": 1628,
+      "quality": {
+        "passed": true
+      },
+      "suggestion": "tenderCode"
+    },
+    {
+      "name": "abstention",
+      "round": 1,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 3552,
+      "providerMs": 3551,
+      "quality": {
+        "passed": true
+      },
+      "suggestion": ""
+    }
+  ],
+  "summaries": [
+    {
+      "model": "gemini-4-hydrogen-low",
+      "label": "Gemini 4 Hydrogen (Low)",
+      "passed": 9,
+      "total": 10,
+      "medianSuccessfulMs": 2145,
+      "maxSuccessfulMs": 5098
+    },
+    {
+      "model": "claude-sonnet-5-5-low",
+      "label": "Claude Sonnet 5.5 (Low)",
+      "passed": 7,
+      "total": 10,
+      "medianSuccessfulMs": 1700,
+      "maxSuccessfulMs": 5277
+    }
+  ],
+  "error": "",
+  "availableModels": [
+    {
+      "slug": "claude-opus-5-5-high",
+      "label": "Claude Opus 5.5 (High)"
+    },
+    {
+      "slug": "claude-opus-5-5-low",
+      "label": "Claude Opus 5.5 (Low)"
+    },
+    {
+      "slug": "claude-opus-5-5-medium",
+      "label": "Claude Opus 5.5 (Medium)"
+    },
+    {
+      "slug": "claude-sonnet-5-5-high",
+      "label": "Claude Sonnet 5.5 (High)"
+    },
+    {
+      "slug": "claude-sonnet-5-5-low",
+      "label": "Claude Sonnet 5.5 (Low)"
+    },
+    {
+      "slug": "claude-sonnet-5-5-medium",
+      "label": "Claude Sonnet 5.5 (Medium)"
+    },
+    {
+      "slug": "gemini-2.5-pro",
+      "label": "Gemini 2.5 Pro"
+    },
+    {
+      "slug": "gemini-3-flash",
+      "label": "Gemini 3 Flash"
+    },
+    {
+      "slug": "gemini-3.1-flash-image",
+      "label": "Gemini 3.1 Flash Image"
+    },
+    {
+      "slug": "gemini-3.1-flash-lite",
+      "label": "Gemini 3.1 Flash Lite"
+    },
+    {
+      "slug": "gemini-2.5-flash",
+      "label": "Gemini 3.5 Flash Lite"
+    },
+    {
+      "slug": "gemini-2.5-flash-lite",
+      "label": "Gemini 3.5 Flash Lite"
+    },
+    {
+      "slug": "gemini-2.5-flash-thinking",
+      "label": "Gemini 3.5 Flash Lite"
+    },
+    {
+      "slug": "gemini-3.5-flash-lite",
+      "label": "Gemini 3.5 Flash Lite"
+    },
+    {
+      "slug": "gemini-3.8-flash-high",
+      "label": "Gemini 3.8 Flash (High)"
+    },
+    {
+      "slug": "gemini-3.8-flash-low",
+      "label": "Gemini 3.8 Flash (Low)"
+    },
+    {
+      "slug": "gemini-3.8-flash-medium",
+      "label": "Gemini 3.8 Flash (Medium)"
+    },
+    {
+      "slug": "gemini-4-argon-high",
+      "label": "Gemini 4 Argon (High)"
+    },
+    {
+      "slug": "gemini-4-argon-low",
+      "label": "Gemini 4 Argon (Low)"
+    },
+    {
+      "slug": "gemini-4-argon-medium",
+      "label": "Gemini 4 Argon (Medium)"
+    },
+    {
+      "slug": "gemini-4-hydrogen-high",
+      "label": "Gemini 4 Hydrogen (High)"
+    },
+    {
+      "slug": "gemini-4-hydrogen-low",
+      "label": "Gemini 4 Hydrogen (Low)"
+    },
+    {
+      "slug": "gemini-4-hydrogen-medium",
+      "label": "Gemini 4 Hydrogen (Medium)"
+    },
+    {
+      "slug": "gemini-flash-worker-agy",
+      "label": "Gemini 4 Hydrogen (Orchestrator)"
+    },
+    {
+      "slug": "gemini-4-hydrogen-xhigh",
+      "label": "Gemini 4 Hydrogen (XHigh)"
+    },
+    {
+      "slug": "gpt-oss-120b-medium",
+      "label": "GPT-OSS 120B (Medium)"
+    },
+    {
+      "slug": "gemini-pro-orchestrator-g1-pro",
+      "label": "Orchestrator (Argon)"
+    }
+  ],
+  "selectedModels": [
+    "gemini-4-hydrogen-low",
+    "claude-sonnet-5-5-low"
+  ],
+  "coreVersion": "0.3.4",
+  "backgroundModelRequests": 0
+}

@@ -1,0 +1,258 @@
+{
+  "scope": "experimental-harness-failures",
+  "completed": true,
+  "passed": false,
+  "notes": "Three isolated harness attempts. No Cursor launched. No latency/quality claim derives from these unavailable acceptances. Last attempt uses automatic edit trigger with 500 ms commit polling; the first two used explicit trigger and 25 ms polling.",
+  "attempts": [
+    {
+      "completed": true,
+      "passed": false,
+      "scope": "editor-acceptance-latency-v1",
+      "app": "antigravity",
+      "appName": "Antigravity IDE",
+      "rounds": 2,
+      "corpusVersion": 1,
+      "corpusDigest": "140a70445baa153095502fc4446654b1ce089916f301c05ec29df102112fb194",
+      "cases": [
+        {
+          "name": "python-expression",
+          "round": 0,
+          "accepted": false,
+          "passed": false,
+          "status": "unavailable",
+          "observationLimitMs": 12000
+        }
+      ],
+      "acceptanceCommand": "editor.action.inlineSuggest.commit",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "coreVersion": "0.3.4",
+      "editorVersion": "1.107.0",
+      "blocked": "No native suggestion accepted within the observation limit; account/quota/readiness may be unavailable. Do not treat this as model latency or correctness."
+    },
+    {
+      "completed": true,
+      "passed": false,
+      "scope": "editor-acceptance-latency-v1",
+      "app": "antigravity",
+      "appName": "Antigravity IDE",
+      "rounds": 2,
+      "corpusVersion": 1,
+      "corpusDigest": "140a70445baa153095502fc4446654b1ce089916f301c05ec29df102112fb194",
+      "cases": [
+        {
+          "name": "python-expression",
+          "round": 0,
+          "accepted": false,
+          "passed": false,
+          "status": "unavailable",
+          "observationLimitMs": 12000,
+          "providerStatus": {
+            "connected": true,
+            "enabled": true,
+            "mode": "ide",
+            "coreVersion": "0.3.4",
+            "preparedIdeAvailable": true,
+            "speculative": {
+              "pending": 0,
+              "forwarded": 0,
+              "ready": true,
+              "shared": 0,
+              "hits": 0,
+              "cached": 0,
+              "misses": 0,
+              "trace": [
+                {
+                  "event": "replace-session",
+                  "keyChanged": true,
+                  "requestedVersion": 1,
+                  "requestedOffset": 0
+                },
+                {
+                  "event": "start",
+                  "version": 1,
+                  "offset": 0,
+                  "pending": 1,
+                  "id": 1
+                },
+                {
+                  "event": "caller-abort",
+                  "version": 1,
+                  "offset": 0,
+                  "pending": 1,
+                  "requestedVersion": 1,
+                  "subscribers": 0
+                },
+                {
+                  "event": "cancel",
+                  "version": 1,
+                  "offset": 0,
+                  "pending": 1,
+                  "reason": "no callers"
+                },
+                {
+                  "event": "replace-session",
+                  "keyChanged": true,
+                  "requestedVersion": 2,
+                  "requestedOffset": 51
+                },
+                {
+                  "event": "start",
+                  "version": 2,
+                  "offset": 51,
+                  "pending": 1,
+                  "id": 2
+                },
+                {
+                  "event": "win",
+                  "version": 2,
+                  "offset": 51,
+                  "pending": 0,
+                  "id": 2,
+                  "originVersion": 2,
+                  "speculative": false
+                }
+              ]
+            },
+            "ignoredDocumentChanges": 5,
+            "ignoredCursorRequests": 0,
+            "lastIgnoredScheme": "vscode-userdata",
+            "ideAvailable": true,
+            "model": "antigravity:gemini-4-hydrogen-low",
+            "modelLabel": "Gemini 4 Hydrogen (Low)",
+            "nativeTabManaged": true,
+            "lastProvider": "ide",
+            "lastLatencyMs": 2012,
+            "lastInlineLatencyMs": 2016.36,
+            "continuationHits": 0,
+            "sharedRequests": 0,
+            "modelRequests": 2,
+            "acceptedCount": 0,
+            "lastError": ""
+          }
+        }
+      ],
+      "acceptanceCommand": "editor.action.inlineSuggest.commit",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "coreVersion": "0.3.4",
+      "editorVersion": "1.107.0",
+      "blocked": "No native suggestion accepted within the observation limit; account/quota/readiness may be unavailable. Do not treat this as model latency or correctness."
+    },
+    {
+      "completed": true,
+      "passed": false,
+      "scope": "editor-acceptance-latency-v1",
+      "app": "antigravity",
+      "appName": "Antigravity IDE",
+      "rounds": 2,
+      "corpusVersion": 1,
+      "corpusDigest": "140a70445baa153095502fc4446654b1ce089916f301c05ec29df102112fb194",
+      "cases": [
+        {
+          "name": "python-expression",
+          "round": 0,
+          "accepted": false,
+          "passed": false,
+          "status": "unavailable",
+          "observationLimitMs": 12000,
+          "providerStatus": {
+            "connected": true,
+            "enabled": true,
+            "mode": "ide",
+            "coreVersion": "0.3.4",
+            "preparedIdeAvailable": true,
+            "speculative": {
+              "pending": 0,
+              "forwarded": 0,
+              "ready": false,
+              "shared": 0,
+              "hits": 0,
+              "cached": 0,
+              "misses": 0,
+              "trace": [
+                {
+                  "event": "replace-session",
+                  "keyChanged": true,
+                  "requestedVersion": 1,
+                  "requestedOffset": 0
+                },
+                {
+                  "event": "start",
+                  "version": 1,
+                  "offset": 0,
+                  "pending": 1,
+                  "id": 1
+                },
+                {
+                  "event": "reject-edit",
+                  "version": 1,
+                  "offset": 0,
+                  "pending": 1,
+                  "receivedVersion": 2,
+                  "changes": 1,
+                  "rangeOffset": 50,
+                  "rangeLength": 0,
+                  "sameDocument": true,
+                  "sameLanguage": true
+                },
+                {
+                  "event": "cancel",
+                  "version": 1,
+                  "offset": 0,
+                  "pending": 1,
+                  "reason": "document content changed"
+                },
+                {
+                  "event": "replace-session",
+                  "keyChanged": true,
+                  "requestedVersion": 2,
+                  "requestedOffset": 51
+                },
+                {
+                  "event": "start",
+                  "version": 2,
+                  "offset": 51,
+                  "pending": 1,
+                  "id": 2
+                },
+                {
+                  "event": "caller-abort",
+                  "version": 2,
+                  "offset": 51,
+                  "pending": 1,
+                  "requestedVersion": 2,
+                  "subscribers": 0
+                },
+                {
+                  "event": "cancel",
+                  "version": 2,
+                  "offset": 51,
+                  "pending": 1,
+                  "reason": "no callers"
+                }
+              ]
+            },
+            "ignoredDocumentChanges": 5,
+            "ignoredCursorRequests": 0,
+            "lastIgnoredScheme": "vscode-userdata",
+            "ideAvailable": true,
+            "model": "antigravity:gemini-4-hydrogen-low",
+            "modelLabel": "Gemini 4 Hydrogen (Low)",
+            "nativeTabManaged": true,
+            "lastInlineLatencyMs": 430.91,
+            "continuationHits": 0,
+            "sharedRequests": 0,
+            "modelRequests": 2,
+            "lastDiscardReason": "provider error -32800: Request cancelled",
+            "acceptedCount": 0,
+            "lastError": ""
+          }
+        }
+      ],
+      "acceptanceCommand": "editor.action.inlineSuggest.commit",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "coreVersion": "0.3.4",
+      "editorVersion": "1.107.0",
+      "blocked": "No native suggestion accepted within the observation limit; account/quota/readiness may be unavailable. Do not treat this as model latency or correctness."
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "completed": true,
+  "passed": false,
+  "scope": "full",
+  "app": "Antigravity IDE",
+  "trusted": true,
+  "cases": [
+    {
+      "name": "python: automatic inline completion",
+      "passed": false,
+      "error": "No python suggestion: {\"connected\":true,\"enabled\":true,\"mode\":\"ide\",\"coreVersion\":\"0.3.4\",\"preparedIdeAvailable\":true,\"speculative\":{\"pending\":1,\"forwarded\":0,\"ready\":false,\"shared\":0,\"hits\":0,\"cached\":0,\"misses\":0,\"trace\":[{\"event\":\"replace-session\",\"keyChanged\":true,\"requestedVersion\":1,\"requestedOffset\":43},{\"event\":\"start\",\"version\":1,\"offset\":43,\"pending\":1,\"id\":1},{\"event\":\"replace-session\",\"version\":1,\"offset\":43,\"pending\":1,\"keyChanged\":false,\"requestedVersion\":1,\"requestedOffset\":0},{\"event\":\"cancel\",\"version\":1,\"offset\":43,\"pending\":1,\"reason\":\"snapshot or model context changed\"},{\"event\":\"start\",\"version\":1,\"offset\":0,\"pending\":1,\"id\":2}]},\"ignoredDocumentChanges\":2,\"ignoredCursorRequests\":3,\"lastIgnoredScheme\":\"vscode-userdata\",\"ideAvailable\":true,\"model\":\"antigravity:gemini-4-hydrogen-low\",\"modelLabel\":\"Gemini 4 Hydrogen (Low)\",\"nativeTabManaged\":true,\"lastInlineLatencyMs\":1220.08,\"continuationHits\":0,\"sharedRequests\":0,\"modelRequests\":2,\"lastDiscardReason\":\"obsolete editor cursor request\",\"acceptedCount\":0,\"lastError\":\"\"}"
+    }
+  ],
+  "startup": {
+    "connected": true,
+    "enabled": true,
+    "mode": "ide",
+    "coreVersion": "0.3.4",
+    "preparedIdeAvailable": true,
+    "speculative": {
+      "pending": 0,
+      "forwarded": 0,
+      "ready": false,
+      "shared": 0,
+      "hits": 0,
+      "cached": 0,
+      "misses": 0,
+      "trace": []
+    },
+    "ignoredDocumentChanges": 0,
+    "ignoredCursorRequests": 0,
+    "ideAvailable": true,
+    "model": "antigravity:gemini-4-hydrogen-low",
+    "modelLabel": "Gemini 4 Hydrogen (Low)",
+    "nativeTabManaged": false,
+    "continuationHits": 0,
+    "sharedRequests": 0,
+    "modelRequests": 0,
+    "acceptedCount": 0,
+    "lastError": ""
+  },
+  "error": "No python suggestion: {\"connected\":true,\"enabled\":true,\"mode\":\"ide\",\"coreVersion\":\"0.3.4\",\"preparedIdeAvailable\":true,\"speculative\":{\"pending\":1,\"forwarded\":0,\"ready\":false,\"shared\":0,\"hits\":0,\"cached\":0,\"misses\":0,\"trace\":[{\"event\":\"replace-session\",\"keyChanged\":true,\"requestedVersion\":1,\"requestedOffset\":43},{\"event\":\"start\",\"version\":1,\"offset\":43,\"pending\":1,\"id\":1},{\"event\":\"replace-session\",\"version\":1,\"offset\":43,\"pending\":1,\"keyChanged\":false,\"requestedVersion\":1,\"requestedOffset\":0},{\"event\":\"cancel\",\"version\":1,\"offset\":43,\"pending\":1,\"reason\":\"snapshot or model context changed\"},{\"event\":\"start\",\"version\":1,\"offset\":0,\"pending\":1,\"id\":2}]},\"ignoredDocumentChanges\":2,\"ignoredCursorRequests\":3,\"lastIgnoredScheme\":\"vscode-userdata\",\"ideAvailable\":true,\"model\":\"antigravity:gemini-4-hydrogen-low\",\"modelLabel\":\"Gemini 4 Hydrogen (Low)\",\"nativeTabManaged\":true,\"lastInlineLatencyMs\":1220.08,\"continuationHits\":0,\"sharedRequests\":0,\"modelRequests\":2,\"lastDiscardReason\":\"obsolete editor cursor request\",\"acceptedCount\":0,\"lastError\":\"\"}"
+}

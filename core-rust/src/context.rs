@@ -1,6 +1,7 @@
 use crate::{
     config::{Config, FimFormat},
-    protocol::{Completion, CompletionKind, Document, offset},
+    protocol::{Completion, CompletionKind, DiagnosticSeverity, Document, DocumentPatch, offset},
+    symbols::{SymbolIndex, identifiers},
 };
 use similar::TextDiff;
 use std::collections::{BTreeMap, VecDeque};
@@ -17,6 +18,7 @@ struct Syntax {
 struct Entry {
     doc: Document,
     syntax: Option<Syntax>,
+    index: SymbolIndex,
 }
 
 #[derive(Default)]
@@ -36,6 +38,117 @@ pub struct Prompt {
     pub next_edit: bool,
     pub complex: bool,
     pub format: FimFormat,
+    bounded_member: bool,
+}
+
+impl Prompt {
+    pub fn qwen_infill(&self) -> Option<String> {
+        if self.next_edit || !matches!(self.format, FimFormat::Qwen) {
+            return None;
+        }
+        // The raw FIM model expects source around its sentinel tokens. Chat
+        // history such as unified diffs belongs in the instruction prompt.
+        Some(format!(
+            "<|fim_prefix|>{}<|fim_suffix|>{}<|fim_middle|>",
+            self.prefix, self.suffix
+        ))
+    }
+
+    pub fn qwen_stop_at(&self) -> Option<&'static str> {
+        if self.next_edit || !matches!(self.format, FimFormat::Qwen) {
+            return None;
+        }
+        let mut lines = self.prefix.rsplit('\n');
+        let current = lines.next().unwrap_or_default();
+        let line = current.trim_start();
+        let trimmed = line.trim_end();
+        if !line.starts_with(['#', '/'])
+            && !trimmed.ends_with(['(', '[', '{', ':', ','])
+            && (line.starts_with("return ") || line.starts_with("yield ") || trimmed.ends_with('.'))
+        {
+            return Some("line");
+        }
+        if self.bounded_member || short_expression_gap(&self.language_id, trimmed, &self.suffix) {
+            return Some("line");
+        }
+        if self.language_id == "python"
+            && current.is_empty()
+            && let Some(comment) = lines.next().and_then(|line| line.strip_prefix('#'))
+        {
+            let comment = comment.to_lowercase();
+            if ["a function", "one function", "bir fonksiyon"]
+                .iter()
+                .any(|phrase| comment.contains(phrase))
+            {
+                return Some("pythonFunction");
+            }
+        }
+        None
+    }
+}
+
+fn bounded_member_gap(entry: &Entry, cursor: usize) -> bool {
+    let Some(syntax) = &entry.syntax else {
+        return false;
+    };
+    let suffix = entry.doc.text[cursor..].trim_start_matches([' ', '\t']);
+    if !suffix.starts_with([';', ')', ']', ',', '('])
+        && !(matches!(
+            entry.doc.language_id.as_str(),
+            "javascript" | "javascriptreact" | "typescript" | "typescriptreact"
+        ) && suffix.starts_with("??"))
+    {
+        return false;
+    }
+    // Match the property node itself so a decimal, spread, comment, or
+    // string containing a dot doesn't change the generation boundary.
+    let Some(name) = cursor.checked_sub(1).and_then(|start| {
+        syntax
+            .tree
+            .root_node()
+            .descendant_for_byte_range(start, cursor)
+    }) else {
+        return false;
+    };
+    if name.end_byte() != cursor {
+        return false;
+    }
+    name.parent().is_some_and(|node| match node.kind() {
+        "member_expression" => node.child_by_field_name("property") == Some(name),
+        "attribute" => node.child_by_field_name("attribute") == Some(name),
+        _ => false,
+    })
+}
+
+fn short_expression_gap(language: &str, line: &str, suffix: &str) -> bool {
+    let python = language == "python";
+    if !python
+        && !matches!(
+            language,
+            "javascript" | "javascriptreact" | "typescript" | "typescriptreact"
+        )
+    {
+        return false;
+    }
+    // Treat quotes, comments and incomplete block delimiters as ordinary FIM.
+    if line.contains(['\'', '"', '`', '#']) || line.contains("//") || line.contains("/*") {
+        return false;
+    }
+    let end_of_line = suffix.split('\n').next().unwrap_or_default().trim();
+    if !end_of_line
+        .bytes()
+        .all(|byte| matches!(byte, b')' | b']' | b';' | b' ' | b'\t'))
+    {
+        return false;
+    }
+    if line.ends_with(['+', '-', '*', '/', '%', '&', '|', '^']) {
+        return !end_of_line.is_empty() || (python && line.contains('='));
+    }
+    // A return/yield with a final argument before an existing close paren is
+    // a bounded expression, even though the text before the caret ends in a comma.
+    (line.starts_with("return ") || line.starts_with("yield "))
+        && line.ends_with(',')
+        && end_of_line.starts_with(')')
 }
 
 pub fn head(text: &str, max: usize) -> &str {
@@ -60,6 +173,14 @@ fn point(text: &str, byte: usize) -> Point {
         prefix.bytes().filter(|b| *b == b'\n').count(),
         prefix.rfind('\n').map_or(byte, |i| byte - i - 1),
     )
+}
+
+fn advance_point(start: Point, text: &str) -> Point {
+    let rows = text.bytes().filter(|b| *b == b'\n').count();
+    let column = text
+        .rfind('\n')
+        .map_or(start.column + text.len(), |index| text.len() - index - 1);
+    Point::new(start.row + rows, column)
 }
 
 fn language(id: &str) -> Option<Language> {
@@ -100,14 +221,47 @@ fn edit(old: &str, new: &str) -> InputEdit {
     }
     let old_end = old.len() - shared;
     let new_end = new.len() - shared;
+    let start_position = point(old, start);
     InputEdit {
         start_byte: start,
         old_end_byte: old_end,
         new_end_byte: new_end,
-        start_position: point(old, start),
-        old_end_position: point(old, old_end),
-        new_end_position: point(new, new_end),
+        start_position,
+        old_end_position: advance_point(start_position, &old[start..old_end]),
+        new_end_position: advance_point(start_position, &new[start..new_end]),
     }
+}
+
+fn edit_history(old: &str, new: &str, changed: &InputEdit) -> String {
+    fn lines_around(text: &str, start: usize, end: usize) -> &str {
+        let start = text[..start]
+            .rmatch_indices('\n')
+            .nth(2)
+            .map_or(0, |(i, _)| i + 1);
+        let end = text[end..]
+            .match_indices('\n')
+            .nth(2)
+            .map_or(text.len(), |(i, _)| end + i + 1);
+        &text[start..end]
+    }
+
+    let before = lines_around(old, changed.start_byte, changed.old_end_byte);
+    let after = lines_around(new, changed.start_byte, changed.new_end_byte);
+    let line = changed.start_position.row + 1;
+    if before.len() + after.len() > 8192 {
+        return format!(
+            "Large edit at line {line}: {} → {} bytes",
+            changed.old_end_byte - changed.start_byte,
+            changed.new_end_byte - changed.start_byte
+        );
+    }
+    let header = format!("before (near line {line})");
+    let diff = TextDiff::from_lines(before, after)
+        .unified_diff()
+        .context_radius(2)
+        .header(&header, "after")
+        .to_string();
+    head(&diff, 4096).to_string()
 }
 
 fn scope_kind(kind: &str) -> bool {
@@ -139,6 +293,61 @@ impl ContextEngine {
     }
 
     pub fn update(&mut self, doc: Document) -> Result<(), (i32, &'static str)> {
+        self.update_with_edit(doc, None)
+    }
+
+    pub fn patch(&mut self, patch: DocumentPatch) -> Result<(), (i32, &'static str)> {
+        const INVALID_RANGE: (i32, &str) = (-32602, "Invalid UTF-16 patch range");
+        let base = &self
+            .documents
+            .get(&patch.uri)
+            .ok_or((-32801, "Patch base missing"))?
+            .doc;
+        if base.version != patch.base_version || patch.version <= patch.base_version {
+            return Err((-32801, "Patch version mismatch"));
+        }
+        let start = offset(&base.text, &patch.start).ok_or(INVALID_RANGE)?;
+        let end = offset(&base.text, &patch.end).ok_or(INVALID_RANGE)?;
+        if start > end {
+            return Err(INVALID_RANGE);
+        }
+        let size = base.text.len() - (end - start) + patch.text.len();
+        if size > MAX_DOCUMENT || patch.text.len() > 8192 {
+            return Err((-32602, "Document patch exceeds size limit"));
+        }
+        let column = base.text[..start]
+            .rfind('\n')
+            .map_or(start, |i| start - i - 1);
+        let start_position = Point::new(patch.start.line, column);
+        let change = InputEdit {
+            start_byte: start,
+            old_end_byte: end,
+            new_end_byte: start + patch.text.len(),
+            start_position,
+            old_end_position: advance_point(start_position, &base.text[start..end]),
+            new_end_position: advance_point(start_position, &patch.text),
+        };
+        let mut text = String::with_capacity(size);
+        text.push_str(&base.text[..start]);
+        text.push_str(&patch.text);
+        text.push_str(&base.text[end..]);
+        let known_edit = (base.text[start..end] != patch.text).then_some(change);
+        self.update_with_edit(
+            Document {
+                uri: patch.uri,
+                language_id: base.language_id.clone(),
+                version: patch.version,
+                text,
+            },
+            known_edit,
+        )
+    }
+
+    fn update_with_edit(
+        &mut self,
+        doc: Document,
+        known_edit: Option<InputEdit>,
+    ) -> Result<(), (i32, &'static str)> {
         if doc.text.len() > MAX_DOCUMENT || doc.uri.len() > 4096 || doc.language_id.len() > 64 {
             return Err((-32602, "Document exceeds size limit"));
         }
@@ -152,54 +361,41 @@ impl ContextEngine {
         {
             return Err((-32005, "Open document context limit reached"));
         }
-        let mut entry = if let Some(mut old) = self.documents.remove(&doc.uri) {
-            if old.doc.text != doc.text {
-                // Bound diff input and output; a large edit remains a bounded summary.
-                let diff = if old.doc.text.len() + doc.text.len() <= 64_000 {
-                    TextDiff::from_lines(&old.doc.text, &doc.text)
-                        .unified_diff()
-                        .context_radius(2)
-                        .header("before", "after")
-                        .to_string()
-                } else {
-                    format!(
-                        "Large edit: {} -> {} bytes",
-                        old.doc.text.len(),
-                        doc.text.len()
-                    )
-                };
-                self.history
-                    .push_back((doc.uri.clone(), head(&diff, 4096).to_string()));
+        let entry = if let Some(mut old) = self.documents.remove(&doc.uri) {
+            let same_language = old.doc.language_id == doc.language_id;
+            let text_changed = known_edit.is_some() || old.doc.text != doc.text;
+            if text_changed {
+                let change = known_edit.unwrap_or_else(|| edit(&old.doc.text, &doc.text));
+                self.history.push_back((
+                    doc.uri.clone(),
+                    edit_history(&old.doc.text, &doc.text, &change),
+                ));
                 while self.history.len() > 10 {
                     self.history.pop_front();
                 }
-                if old.doc.language_id == doc.language_id {
-                    if let Some(ast) = &mut old.syntax {
-                        ast.tree.edit(&edit(&old.doc.text, &doc.text));
-                        if let Some(tree) = ast.parser.parse(&doc.text, Some(&ast.tree)) {
-                            ast.tree = tree;
-                        } else {
-                            old.syntax = None;
-                        }
+                if same_language && let Some(ast) = &mut old.syntax {
+                    ast.tree.edit(&change);
+                    if let Some(tree) = ast.parser.parse(&doc.text, Some(&ast.tree)) {
+                        ast.tree = tree;
+                    } else {
+                        old.syntax = None;
                     }
-                } else {
-                    old.syntax = syntax(&doc);
                 }
             }
-            if old.doc.language_id != doc.language_id {
+            let changed = text_changed || !same_language;
+            if !same_language || (text_changed && old.syntax.is_none()) {
                 old.syntax = syntax(&doc);
+            }
+            if changed {
+                old.index = SymbolIndex::build(&doc.text, old.syntax.as_ref().map(|ast| &ast.tree));
             }
             old.doc = doc;
             old
         } else {
-            Entry {
-                syntax: syntax(&doc),
-                doc,
-            }
+            let syntax = syntax(&doc);
+            let index = SymbolIndex::build(&doc.text, syntax.as_ref().map(|ast| &ast.tree));
+            Entry { doc, syntax, index }
         };
-        if entry.syntax.is_none() {
-            entry.syntax = syntax(&entry.doc);
-        }
         self.documents.insert(entry.doc.uri.clone(), entry);
         Ok(())
     }
@@ -239,38 +435,110 @@ impl ContextEngine {
         if end < cursor
             || end - cursor > 16_384.min(config.max_context_bytes / 4)
             || request.instruction.len() > 2048.min(config.max_context_bytes / 8)
+            || request.diagnostics.len() > 8
+            || request.related_documents.len() > 4
+            || request.related_documents.iter().any(|doc| {
+                doc.text.len() > 65_536 || doc.uri.len() > 4096 || doc.language_id.len() > 64
+            })
+            || request
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message.len() > 512)
         {
             return Err((-32602, "Invalid edit range or instruction"));
         }
+        let task = if next_edit {
+            "Replace the selected code following the instruction. Return replacement code only; omit surrounding code, explanations and markdown."
+        } else {
+            "Fill only the cursor gap in the ACTIVE file (<PRE> and <SUF>). Other sections are references, not code to continue. Follow the latest nearby request comment in its language; obey the stated programming Language even if the comment marker belongs to another language. Implement requested behavior fully, including a declaration if needed. No pass, TODO, ellipsis, NotImplementedError or empty body unless a stub/skeleton is explicitly requested. If a new function's behavior is unspecified (e.g. 'create function'), return exactly <NO_COMPLETION>. Match existing names and indentation. For expression gaps finish the expression; for behavior comments complete the requested implementation. Prefer the smallest useful code unit. Do not add examples/tests unless requested. Return missing code only, no markdown or explanation. Prefix and suffix remain in the file: do not repeat them."
+        };
+        // The byte budget includes chat instructions and framing, not just FIM.
+        let framing = format!(
+            "{task}\nLanguage: {}\n\n<PRE></PRE>\n<SUF></SUF>",
+            entry.doc.language_id
+        )
+        .len();
+        let budget = config.max_context_bytes.saturating_sub(framing.max(64));
+        let stable_budget = budget / 4;
         let mut stable = format!(
-            "Project context:\n{}\nOpen symbols:\n",
-            config.project_context
+            "Project context:\n{}\n",
+            head(&config.project_context, stable_budget / 3)
         );
-        for (uri, other) in &self.documents {
-            if uri == &request.uri {
+        if cursor > budget / 2 && !entry.index.headers.is_empty() {
+            stable.push_str("Active file imports:\n");
+            stable.push_str(head(&entry.index.headers, stable_budget / 4));
+        }
+        let query = format!(
+            "{}\n{}\n{}",
+            tail(&entry.doc.text[..cursor], 3072),
+            head(&entry.doc.text[end..], 1024),
+            entry.index.headers
+        );
+        let terms = identifiers(&query);
+        // Request-scoped references never enter the persistent document/history
+        // store. An open (possibly unsaved) editor buffer always takes priority.
+        let mut related = BTreeMap::new();
+        for doc in &request.related_documents {
+            if self.documents.contains_key(&doc.uri) || related.contains_key(&doc.uri) {
                 continue;
             }
-            if let Some(ast) = &other.syntax {
-                let mut walk = ast.tree.walk();
-                for node in ast
-                    .tree
-                    .root_node()
-                    .named_children(&mut walk)
-                    .filter(|n| scope_kind(n.kind()))
-                    .take(8)
-                {
-                    stable.push_str(&format!(
-                        "{}: {}\n",
-                        head(uri, 160),
-                        signature(node, &other.doc.text)
-                    ));
+            let syntax = syntax(doc);
+            let index = SymbolIndex::build(&doc.text, syntax.as_ref().map(|value| &value.tree));
+            related.insert(
+                doc.uri.clone(),
+                Entry {
+                    doc: doc.clone(),
+                    syntax,
+                    index,
+                },
+            );
+        }
+        let mut candidates = Vec::new();
+        for (uri, other) in self.documents.iter().chain(related.iter()) {
+            let filename = uri.rsplit('/').next().unwrap_or(uri);
+            let stem = filename.rsplit_once('.').map_or(filename, |(stem, _)| stem);
+            let imported = stem.len() >= 3 && entry.index.headers.contains(stem);
+            for symbol in &other.index.symbols {
+                let same_file = uri == &request.uri;
+                if same_file && symbol.start <= cursor && cursor <= symbol.end {
+                    continue;
                 }
-            }
-            if stable.len() > config.max_context_bytes / 4 {
-                break;
+                let direct = terms.contains(symbol.name.as_str());
+                let owner = !symbol.owner.is_empty() && terms.contains(symbol.owner.as_str());
+                // Unrelated open files cannot crowd out referenced APIs/types.
+                if !same_file && !direct && !owner && !imported {
+                    continue;
+                }
+                let score = usize::from(imported) * 24
+                    + usize::from(direct) * 20
+                    + usize::from(owner) * 12
+                    + usize::from(same_file) * 4;
+                candidates.push((score, uri, symbol));
             }
         }
-        stable = head(&stable, config.max_context_bytes / 4).to_string();
+        candidates.sort_by(|a, b| {
+            b.0.cmp(&a.0)
+                .then_with(|| a.1.cmp(b.1))
+                .then_with(|| a.2.start.cmp(&b.2.start))
+        });
+        stable.push_str("Relevant symbols (references only):\n");
+        for (_, uri, symbol) in candidates.into_iter().take(12) {
+            let label = if uri == &request.uri {
+                "active file"
+            } else {
+                head(uri, 160)
+            };
+            let owner = if symbol.owner.is_empty() {
+                String::new()
+            } else {
+                format!("{}::", symbol.owner)
+            };
+            let line = format!("{label}: {owner}{}\n", symbol.signature);
+            if stable.len() + line.len() <= stable_budget {
+                stable.push_str(&line);
+            }
+        }
+        stable = head(&stable, stable_budget).to_string();
         let mut dynamic = String::new();
         if let Some(ast) = &entry.syntax {
             dynamic.push_str(&format!(
@@ -296,7 +564,34 @@ impl ContextEngine {
                 node = current.parent();
             }
         }
-        let syntax_context = head(&dynamic, config.max_context_bytes / 16).to_string();
+        let syntax_context = head(&dynamic, budget / 16).to_string();
+        let mut diagnostic_context = String::new();
+        for diagnostic in &request.diagnostics {
+            if offset(&entry.doc.text, &diagnostic.position).is_none()
+                || diagnostic.position.line.abs_diff(request.position.line) > 32
+            {
+                continue;
+            }
+            let severity = match diagnostic.severity {
+                DiagnosticSeverity::Error => "error",
+                DiagnosticSeverity::Warning => "warning",
+            };
+            diagnostic_context.push_str(&format!(
+                "{severity} at {}:{}: {}\n",
+                diagnostic.position.line + 1,
+                diagnostic.position.character + 1,
+                diagnostic.message
+            ));
+        }
+        let advisory = if diagnostic_context.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "Nearby editor diagnostics (advisory; may lag edits):\n{}",
+                head(&diagnostic_context, budget / 16)
+            )
+        };
+        let syntax_context = head(&format!("{advisory}{syntax_context}"), budget / 8).to_string();
         dynamic.clear();
         dynamic.push_str("Recent edits:\n");
         // Oldest -> newest to keep stable leading history across requests.
@@ -305,10 +600,7 @@ impl ContextEngine {
         }
         dynamic = format!(
             "{syntax_context}{}",
-            tail(
-                &dynamic,
-                config.max_context_bytes / 8 - syntax_context.len()
-            )
+            tail(&dynamic, budget / 8 - syntax_context.len())
         );
         let mut context = format!("{stable}\n{dynamic}");
         if next_edit {
@@ -318,7 +610,7 @@ impl ContextEngine {
                 &entry.doc.text[cursor..end]
             ));
         }
-        let available = config.max_context_bytes.saturating_sub(context.len() + 512);
+        let available = budget.saturating_sub(context.len());
         let prefix = tail(&entry.doc.text[..cursor], available * 3 / 4).to_string();
         let suffix = head(&entry.doc.text[end..], available / 4).to_string();
         // Prefix/suffix are separate for llama.cpp; raw APIs use explicit tokens.
@@ -328,13 +620,8 @@ impl ContextEngine {
             }
             FimFormat::Codestral => format!("{context}[SUFFIX]{suffix}[PREFIX]{prefix}[MIDDLE]"),
         };
-        let task = if next_edit {
-            "Replace the selected code using the instruction above. Return only replacement code. Do not include surrounding code or markdown.".to_string()
-        } else {
-            "Fill the cursor gap in the ACTIVE file only. The exact active-file contents are <PRE> and <SUF> below; open symbols and history above are auxiliary references, not the file you are continuing. Follow the most recent nearby request comment in the user's language, even when earlier code contains unrelated stubs. A comment requesting behavior needs a working implementation, including the full declaration when none has been started. Do not substitute pass, ellipsis, TODO, NotImplementedError or an empty body for requested behavior. Only emit a stub when the user explicitly requests a stub, skeleton or abstract declaration. If neither the request nor surrounding context specifies what a new function should do (for example, just 'create function'), return no completion rather than inventing generic my_function/another_function scaffolds. Respect the stated Language, even if the user used another language's comment marker; do not copy invalid syntax from that marker into generated code. Complete only the requested code unit; omit example calls and tests unless requested. Return only missing code, no explanation or markdown. Do not repeat prefix or suffix.".to_string()
-        };
         let chat = format!(
-            "{context}\n{task}\nLanguage: {}\n<PRE>{prefix}</PRE>\n<SUF>{suffix}</SUF>",
+            "{task}\nLanguage: {}\n{context}\n<PRE>{prefix}</PRE>\n<SUF>{suffix}</SUF>",
             entry.doc.language_id
         );
         let complex = next_edit
@@ -353,6 +640,9 @@ impl ContextEngine {
             next_edit,
             complex,
             format: config.fim_format,
+            bounded_member: !next_edit
+                && config.fim_format == FimFormat::Qwen
+                && bounded_member_gap(entry, cursor),
         })
     }
 }
@@ -382,7 +672,153 @@ mod tests {
             end_position: None,
             instruction: String::new(),
             explicit: false,
+            diagnostics: Vec::new(),
+            related_documents: Vec::new(),
         }
+    }
+    fn at_end(uri: &str, text: &str) -> Completion {
+        let mut value = request(1);
+        value.uri = uri.into();
+        value.position = Position {
+            line: text.matches('\n').count(),
+            character: text
+                .rsplit('\n')
+                .next()
+                .unwrap_or("")
+                .encode_utf16()
+                .count(),
+        };
+        value
+    }
+
+    #[test]
+    fn referenced_exported_apis_and_type_shapes_win_over_unrelated_open_files() {
+        let mut engine = ContextEngine::default();
+        for i in 0..14 {
+            engine
+                .update(Document {
+                    uri: format!("file:///aaa-{i}.ts"),
+                    version: 1,
+                    language_id: "typescript".into(),
+                    text: format!(
+                        "export function unrelated_{i}(value: string): string {{ return value; }}"
+                    ),
+                })
+                .unwrap();
+        }
+        engine.update(Document { uri: "file:///zzz-service.ts".into(), version: 1, language_id: "typescript".into(), text: "export interface Invoice { currency: string; cents: number; }\nexport function normalizeInvoice(invoice: Invoice): Invoice { return invoice; }".into() }).unwrap();
+        let active = "import { normalizeInvoice, Invoice } from './zzz-service';\nconst result = normalizeInvoice(";
+        let uri = "file:///main.ts";
+        engine
+            .update(Document {
+                uri: uri.into(),
+                version: 1,
+                language_id: "typescript".into(),
+                text: active.into(),
+            })
+            .unwrap();
+        let prompt = engine
+            .prompt(
+                &at_end(uri, active),
+                &Config {
+                    max_context_bytes: 4096,
+                    ..Config::default()
+                },
+            )
+            .unwrap();
+        assert!(
+            prompt
+                .stable
+                .contains("normalizeInvoice(invoice: Invoice): Invoice")
+        );
+        assert!(prompt.stable.contains("currency: string"));
+        assert!(!prompt.stable.contains("unrelated_"));
+    }
+
+    #[test]
+    fn long_files_keep_imports_and_referenced_active_file_declarations() {
+        let mut engine = ContextEngine::default();
+        let text = format!(
+            "import {{ Invoice }} from './types';\n{}\nfunction normalizeInvoice(invoice: Invoice): Invoice {{ return invoice; }}\n{}\nconst result = normalizeInvoice(",
+            "// filler 😀\n".repeat(1500),
+            "// filler 😀\n".repeat(1500)
+        );
+        let uri = "file:///main.ts";
+        engine
+            .update(Document {
+                uri: uri.into(),
+                version: 1,
+                language_id: "typescript".into(),
+                text: text.clone(),
+            })
+            .unwrap();
+        let prompt = engine
+            .prompt(
+                &at_end(uri, &text),
+                &Config {
+                    max_context_bytes: 4096,
+                    ..Config::default()
+                },
+            )
+            .unwrap();
+        assert!(!prompt.prefix.contains("import { Invoice }"));
+        assert!(prompt.stable.contains("import { Invoice }"));
+        assert!(
+            prompt
+                .stable
+                .contains("normalizeInvoice(invoice: Invoice): Invoice")
+        );
+    }
+
+    #[test]
+    fn symbol_index_refreshes_after_changes_and_close() {
+        let mut engine = ContextEngine::default();
+        let mut helper = Document {
+            uri: "file:///helper.ts".into(),
+            version: 1,
+            language_id: "typescript".into(),
+            text: "export function convert(value: string): number { return 1; }".into(),
+        };
+        engine.update(helper.clone()).unwrap();
+        let active = "const x = convert(";
+        let uri = "file:///main.ts";
+        engine
+            .update(Document {
+                uri: uri.into(),
+                version: 1,
+                language_id: "typescript".into(),
+                text: active.into(),
+            })
+            .unwrap();
+        let completion = at_end(uri, active);
+        assert!(
+            engine
+                .prompt(&completion, &Config::default())
+                .unwrap()
+                .stable
+                .contains("convert(value: string): number")
+        );
+        helper.version = 2;
+        helper.text = "export function convert(value: string): boolean { return true; }".into();
+        engine.update(helper.clone()).unwrap();
+        let prompt = engine.prompt(&completion, &Config::default()).unwrap();
+        assert!(prompt.stable.contains("convert(value: string): boolean"));
+        assert!(
+            !prompt
+                .stable
+                .split("Recent edits:")
+                .next()
+                .unwrap()
+                .contains("convert(value: string): number")
+        );
+        engine.close(&helper.uri);
+        assert!(
+            !engine
+                .prompt(&completion, &Config::default())
+                .unwrap()
+                .stable
+                .contains("convert(value:")
+        );
     }
     #[test]
     fn incremental_parse_history_and_prompt_order() {
@@ -448,6 +884,199 @@ mod tests {
         };
         let prompt = engine.prompt(&request(1), &config).unwrap();
         assert!(prompt.fim.len() <= config.max_context_bytes);
+        assert!(prompt.chat.len() <= config.max_context_bytes);
         assert!(prompt.fim.contains("[SUFFIX]"));
+    }
+
+    #[test]
+    fn small_crlf_change_in_a_large_file_keeps_the_actual_edit() {
+        let prefix = "// unrelated context\r\n".repeat(6000);
+        let before = format!("{prefix}const label = '😀';\r\nconst next = 1;\r\n");
+        let after = format!("{prefix}const label = '💡';\r\nconst next = 1;\r\n");
+        let change = edit(&before, &after);
+        assert_eq!(change.start_position.row, 6000);
+        let diff = edit_history(&before, &after, &change);
+        assert!(diff.contains("near line 6001"));
+        assert!(diff.contains("-const label = '😀';\r\n"));
+        assert!(diff.contains("+const label = '💡';\r\n"));
+        assert!(diff.len() < 1024);
+    }
+
+    #[test]
+    fn infill_boundary_distinguishes_comment_requests_from_expression_gaps() {
+        let mut engine = ContextEngine::default();
+        let uri = "file:///demo.py";
+        for (version, text, expected) in [
+            (
+                1,
+                "# İki sayının büyük olanını döndüren bir fonksiyon yaz.\n",
+                Some("pythonFunction"),
+            ),
+            (2, "def calculate(a, b):\n    return a + ", Some("line")),
+            (3, "def calculate(a, b):\n    return (", None),
+        ] {
+            engine
+                .update(Document {
+                    uri: uri.into(),
+                    language_id: "python".into(),
+                    version,
+                    text: text.into(),
+                })
+                .unwrap();
+            let mut completion = at_end(uri, text);
+            completion.version = version;
+            let prompt = engine.prompt(&completion, &Config::default()).unwrap();
+            assert_eq!(prompt.qwen_stop_at(), expected);
+        }
+    }
+
+    #[test]
+    fn short_gap_boundary_uses_existing_line_closers_and_preserves_blocks() {
+        let mut engine = ContextEngine::default();
+        let uri = "file:///short-gap";
+        let cases = [
+            (
+                "typescript",
+                "  const total = a + ",
+                ";\r\n  return total;",
+                Some("line"),
+            ),
+            (
+                "javascript",
+                "const values = rows.map(row => row.id * ",
+                ");\n",
+                Some("line"),
+            ),
+            ("typescript", "  return Math.max(a, ", ");\n}", Some("line")),
+            (
+                "python",
+                "    result = a + ",
+                "\n    return result",
+                Some("line"),
+            ),
+            ("python", "    return max(a, ", ")\n", Some("line")),
+            (
+                "typescript",
+                "const label = account.display",
+                ";\n",
+                Some("line"),
+            ),
+            (
+                "typescript",
+                "const price = invoice?.unitPric",
+                " ?? 0;\n",
+                Some("line"),
+            ),
+            (
+                "javascript",
+                "const label = account().toUpper",
+                "();\n",
+                Some("line"),
+            ),
+            (
+                "python",
+                "    value = process(item.disp",
+                ")\n",
+                Some("line"),
+            ),
+            ("javascript", "const label = account.display", "\n", None),
+            ("typescript", "  const n = 0.5", ";\n", None),
+            ("typescript", "  const list = [...acc", "];\n", None),
+            ("typescript", "// example account.display", ";\n", None),
+            (
+                "typescript",
+                "/* explanation\n account.display",
+                ";\n*/",
+                None,
+            ),
+            (
+                "javascript",
+                "const text = 'example account.display",
+                ";'\n",
+                None,
+            ),
+            ("typescript", "const options = {\n  ", "\n};", None),
+            (
+                "typescript",
+                "function choose(a: number, ",
+                "): number {}",
+                None,
+            ),
+            ("typescript", "// Example + ", ";\n", None),
+            ("typescript", "const text = `some + ", ";\n", None),
+            ("python", "    s = '''some + ", "\n", None),
+            ("python", "    result += ", " # keep the comment\n", None),
+        ];
+        for (index, (language, prefix, suffix, expected)) in cases.iter().enumerate() {
+            let version = index as u32 + 1;
+            engine
+                .update(Document {
+                    uri: uri.into(),
+                    language_id: (*language).into(),
+                    version,
+                    text: format!("{prefix}{suffix}"),
+                })
+                .unwrap();
+            let mut completion = at_end(uri, prefix);
+            completion.version = version;
+            let prompt = engine.prompt(&completion, &Config::default()).unwrap();
+            assert_eq!(prompt.qwen_stop_at(), *expected, "{language} {prefix:?}");
+        }
+    }
+
+    #[test]
+    fn prompt_budget_covers_instructions_and_maximum_edit_context() {
+        let mut engine = ContextEngine::default();
+        let text = format!(
+            "fn main() {{\n    {}{}",
+            "x".repeat(20000),
+            "😀".repeat(10000)
+        );
+        engine.update(doc(1, &text)).unwrap();
+        for max_context_bytes in [2048, 4096, 24000, 64000] {
+            let config = Config {
+                max_context_bytes,
+                project_context: "project".repeat(1000),
+                ..Config::default()
+            };
+            let mut completion = request(1);
+            let inline = engine.prompt(&completion, &config).unwrap();
+            assert!(inline.chat.len() <= max_context_bytes);
+            assert!(inline.fim.len() <= max_context_bytes);
+            completion.kind = CompletionKind::NextEdit;
+            completion.end_position = Some(Position {
+                line: 1,
+                character: 4 + (max_context_bytes / 4).min(16384),
+            });
+            completion.instruction = "x".repeat((max_context_bytes / 8).min(2048));
+            let edit = engine.prompt(&completion, &config).unwrap();
+            assert!(edit.chat.len() <= max_context_bytes);
+            assert!(edit.fim.len() <= max_context_bytes);
+        }
+    }
+
+    #[test]
+    fn default_import_alias_keeps_the_exported_class_api() {
+        let mut engine = ContextEngine::default();
+        engine.update(Document { uri: "file:///backend-client.ts".into(), version: 1, language_id: "typescript".into(), text: "export default class BackendClient { lookupInvoice(id: string): string { return id; } }".into() }).unwrap();
+        let active =
+            "import Api from './backend-client';\nconst client = new Api();\nclient.lookup";
+        let uri = "file:///main.ts";
+        engine
+            .update(Document {
+                uri: uri.into(),
+                version: 1,
+                language_id: "typescript".into(),
+                text: active.into(),
+            })
+            .unwrap();
+        let prompt = engine
+            .prompt(&at_end(uri, active), &Config::default())
+            .unwrap();
+        assert!(
+            prompt
+                .stable
+                .contains("BackendClient::lookupInvoice(id: string): string")
+        );
     }
 }

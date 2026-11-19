@@ -1,0 +1,22 @@
+{
+  "completed": true,
+  "passed": true,
+  "scope": "diagnostic-context-and-cache",
+  "cases": [
+    {
+      "name": "diagnostic hint reaches the real IDE model and identical context is cached",
+      "passed": true,
+      "text": "displayLabelA",
+      "discardedAttempts": 2
+    },
+    {
+      "name": "diagnostic change invalidates suggestions without a text/version change",
+      "passed": true,
+      "text": "displayLabelB",
+      "discardedAttempts": 0,
+      "additionalModelRequests": 1
+    }
+  ],
+  "coreVersion": "0.3.2",
+  "model": "antigravity:gemini-4-hydrogen-low"
+}

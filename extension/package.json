@@ -1,8 +1,8 @@
 {
   "name": "superborrow",
   "displayName": "Superborrow",
-  "description": "Hybrid local and IDE code completion with FIM context and reviewed next edits.",
-  "version": "0.3.1",
+  "description": "Low-latency Tab completion and inline edits for Duskline and compatible VS Code hosts.",
+  "version": "0.3.9",
   "private": true,
   "publisher": "superborrow-dev",
   "engines": {
@@ -31,20 +31,21 @@
         "command": "superborrow.checkBridge",
         "title": "Superborrow: Check Bridge"
       },
-      { "command": "superborrow.cycleMode", "title": "Antigravity Tab: Switch Mode" },
-      { "command": "superborrow.toggle", "title": "Antigravity Tab: Pause / Resume" },
-      { "command": "superborrow.selectModel", "title": "Antigravity Tab: Select IDE Model" },
+      { "command": "superborrow.cycleMode", "title": "Superborrow: Switch Mode" },
+      { "command": "superborrow.toggle", "title": "Superborrow: Pause / Resume Tab" },
+      { "command": "superborrow.selectModel", "title": "Superborrow: Select IDE Model" },
       { "command": "superborrow.enableCompositeTab", "title": "Antigravity Tab: Use Superborrow for Tab" },
       { "command": "superborrow.restoreNativeTab", "title": "Antigravity Tab: Restore Antigravity Tab" },
-      { "command": "superborrow.inspectModels", "title": "Antigravity Tab: Inspect Available Models" },
-      { "command": "superborrow.nextEdit", "title": "Antigravity Tab: Suggest Next Edit" },
-      { "command": "superborrow.showOutput", "title": "Antigravity Tab: Show Diagnostics" }
+      { "command": "superborrow.inspectModels", "title": "Superborrow: Inspect Available Models" },
+      { "command": "superborrow.nextEdit", "title": "Superborrow: Suggest Next Edit" },
+      { "command": "superborrow.showOutput", "title": "Superborrow: Show Diagnostics" }
     ],
     "configuration": {
       "title": "Superborrow",
       "properties": {
         "superborrow.enabled": { "type": "boolean", "default": true, "description": "Enable inline suggestions and in-memory document context." },
-        "superborrow.mode": { "type": "string", "enum": ["hybrid", "local", "ide"], "default": "hybrid", "description": "Local uses only the loopback model. IDE uses the selected model. Hybrid routes by context and can fall back between available providers." },
+        "superborrow.inlineNextEdit": { "type": "boolean", "default": true, "description": "In Duskline, offer nearby edits, import fixes, and rename follow-ups for Tab acceptance." },
+        "superborrow.mode": { "type": "string", "enum": ["hybrid", "local", "ide"], "default": "ide", "description": "Antigravity IDE models are the default. Local uses only the loopback model. IDE uses the selected model. Hybrid routes by context and can fall back between available providers." },
         "superborrow.ideModel": { "type": "string", "default": "auto", "scope": "machine", "description": "auto discovers a fast model from the signed-in Antigravity host. A pinned selection is antigravity:<slug> or vscode:<model-id>; use Select IDE Model to choose. Restored on startup." },
         "superborrow.manageNativeTab": { "type": "boolean", "default": false, "scope": "machine", "description": "Use Superborrow as the Tab provider and turn off the competing native Tab provider. Use the Use Superborrow for Tab / Restore Antigravity Tab commands to switch and preserve the original preference. Only the native tabEnabled preference is changed." },
         "superborrow.hybridPreference": { "type": "string", "enum": ["auto", "local", "ide"], "default": "auto", "description": "Hybrid primary provider: auto uses context complexity; local prefers local inference; ide prefers the selected IDE model for every language. Failures may fall back to the other available provider." },
@@ -53,9 +54,11 @@
         "superborrow.model": { "type": "string", "default": "", "maxLength": 256, "scope": "machine", "description": "Required model name for Ollama / OpenAI-compatible local servers." },
         "superborrow.fimFormat": { "type": "string", "enum": ["qwen", "codestral"], "default": "qwen", "description": "Raw FIM token layout for Ollama and OpenAI-compatible completions. llama.cpp /infill applies its own tokenizer." },
         "superborrow.debounceMs": { "type": "integer", "minimum": 0, "maximum": 1000, "default": 60, "description": "Wait after automatic requests before starting inference. Explicit requests skip this wait." },
+        "superborrow.speculativeTyping": { "type": "boolean", "default": true, "description": "In IDE mode, retain a compatible in-flight prediction while typing and race it against a fresh request. Uses at most two active client-side IDE model jobs; exact typed-prefix matching is required. Disable to use one version-bound request at a time." },
         "superborrow.requestTimeoutMs": { "type": "integer", "minimum": 250, "maximum": 120000, "default": 10000, "description": "End-to-end core timeout including debounce and fallback." },
         "superborrow.maxTokens": { "type": "integer", "minimum": 1, "maximum": 1024, "default": 128, "description": "Local output token budget and IDE input reservation. The portable IDE API does not expose an output-token limit." },
         "superborrow.maxContextBytes": { "type": "integer", "minimum": 2048, "maximum": 64000, "default": 24000, "description": "Bounded UTF-8 prompt context budget, including prefix, suffix, signatures and recent edits." },
+        "superborrow.importContext": { "type": "boolean", "default": true, "description": "Read up to four directly imported TypeScript/JavaScript source files inside the trusted workspace (64 KB each) as API/type references. Exclusions apply; no package resolution or code execution." },
         "superborrow.projectContext": { "type": "string", "maxLength": 8192, "default": "", "description": "Optional stable project notes prepended to prompts. No project files are read automatically." },
         "superborrow.exclude": { "type": "array", "items": { "type": "string", "maxLength": 256 }, "maxItems": 64, "default": [".env*", "*.pem", "*.key", ".git", "node_modules", "target", "dist"], "description": "Excluded file/path fragments with * and ? wildcards. Matching is case-insensitive. Excluded documents are removed from context." },
         "superborrow.ideAdapterExtension": { "type": "string", "default": "", "scope": "machine", "description": "Optional installed extension ID exporting superborrowCompletionProvider v1. Activated only by Select IDE Model." },
@@ -72,6 +75,7 @@
     "package:windows": "node scripts/package-windows.cjs",
     "smoke:local": "npm run compile && node scripts/smoke-local.cjs",
     "test:host": "npm run compile && node scripts/test-host.cjs",
+    "benchmark:host": "npm run compile && node scripts/test-host.cjs --benchmark",
     "compile": "tsc -p .",
     "test": "npm run compile && node --test dist/test/*.test.js"
   },

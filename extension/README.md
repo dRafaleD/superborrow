@@ -1,4 +1,4 @@
-# Superborrow 0.3
+# Superborrow 0.3.9
 
 Hybrid local / IDE code completion with a bundled Rust context engine.
 
@@ -8,8 +8,25 @@ catalog is discovered automatically through the host extension's exported API.
 **Select IDE Model** pins a model across restarts; auto prefers a fast model.
 Generic VS Code hosts can still select `vscode.lm` models or an explicit adapter.
 
+### Duskline IDE
+
+Install the Windows x64 VSIX into Duskline and run **Superborrow: Select IDE
+Model**. The picker lists models already installed in Ollama. Choose
+`qwen2.5-coder:0.5b` for fast fill-in-the-middle suggestions or pick another
+installed model. Duskline warms the selected model in a dedicated managed
+Ollama process. Tab accepts ghost text and nearby inline replacements. Model
+inference runs locally in trusted workspaces. The TypeScript language service
+can suggest a single unambiguous missing import in TypeScript or JavaScript.
+Select and overwrite an entire identifier to see follow-up replacements for
+references in files already open in the same project. Tab moves to the next
+reference, then Tab accepts its replacement. The language service can also
+complete a unique property or enum member in saved and untitled files. When
+parentheses are already present, it can complete a unique method name.
+These suggestions work with the local model turned off. Use **Superborrow:
+Pause / Resume Tab** to pause suggestions.
+
 Run **Antigravity Tab: Use Superborrow for Tab** to make Superborrow the active
-Tab provider with IDE-first Hybrid routing. It saves and disables only the
+Tab provider with IDE-only routing (also the default for new configurations). It saves and disables only the
 competing native `tabEnabled` preference. **Restore Antigravity Tab** restores
 that preference and pauses Superborrow. This is a persistent provider choice;
 pausing alone does not re-enable the native provider. Account, chat and privacy
@@ -34,14 +51,17 @@ accepted. Models and servers are not downloaded or started by the extension.
 Inline suggestions use the editor's standard acceptance key. **Suggest Next
 Edit** proposes a replacement for the selection or current line, opens a diff,
 and applies it only after **Apply**, provided the document version still matches.
-It does not predict an edit location or modify multiple files.
 
 **Inspect Available Models** lists model metadata, active extension export names
 and candidate command IDs. It does not execute undocumented internal commands.
 **Show Diagnostics** opens connection/error logs without source text or prompts.
 
 Context is bounded, in memory, and collected from up to 16 open eligible
-documents. Common secret/dependency filenames are excluded via `superborrow.exclude`.
+documents. In a trusted workspace, `superborrow.importContext` also reads up to
+four directly imported local TypeScript/JavaScript files (64 KB each) for API/type
+references, without opening editors or traversing dependencies. Disable that
+setting to restrict context to open documents. Common secret/dependency filenames
+are excluded via `superborrow.exclude`.
 Filename filtering does not detect every secret in arbitrary source code.
 Local mode uses only the loopback server; Hybrid can fall back to a selected IDE
 provider, which may send code to that provider's service.
@@ -70,3 +90,39 @@ and use `superborrow.corePath`. Latency depends on model size, hardware and
 prompt cache state. No general sub-100-ms guarantee is made.
 
 Full documentation: https://github.com/dRafaleD/superborrow (private repository).
+
+Matching typing or partial acceptance reuses the remaining model suggestion for up to 15 seconds without another model call. Divergent edits, other document edits, model/configuration changes and expiry invalidate it. Diagnostics expose `continuationHits`, `modelRequests` and `lastInlineLatencyMs` separately from provider latency. Empty results are cached for two seconds for identical requests. Existing explicit Hybrid/Local preferences remain in effect until changed or Use Superborrow for Tab is run.
+
+Concurrent requests at the same snapshot/cursor share one inference with independent cancellation. Document changes cancel immediately; a 25 ms handoff keeps identical requests alive when the editor replaces a cancellation token. Diagnostics also report `sharedRequests`.
+
+Version 0.3.3 ranks cached declarations/types by referenced names and imports,
+including exports and distant active-file declarations. Up to eight nearby
+errors/warnings are advisory model context; changed diagnostics invalidate old
+suggestions. `maxContextBytes` covers instructions and chat framing as well as
+source context. See the repository validation report for targeted A/B quality
+results; Cursor superiority is not established.
+
+In 0.3.4, IDE mode can reuse an in-flight prediction across exact forward typing
+while racing it against a fresh request (up to two client-side jobs). This can
+consume additional provider work; set `superborrow.speculativeTyping` to false
+for the single version-bound route. Changes outside that typed prefix cancel
+the prediction; mismatched old output never wins. Excluded virtual documents
+and obsolete requests away from the actual caret no longer interrupt it.
+
+In 0.3.5, automatic selection excludes image/orchestrator models and prefers
+low-reasoning Flash fallback variants. Explicit pins remain respected. Small
+real-account comparisons supported keeping Hydrogen Low as the primary model;
+they do not establish superiority to Cursor. See `docs/validation.md` in the repo.
+
+In 0.3.6, adjacent queued updates to the same document collapse into the latest
+snapshot. Preparation, other documents and close remain ordering barriers.
+This reduces redundant context RPCs/parses during a backlog without changing
+an in-flight snapshot or contacting additional models.
+
+In 0.3.7, closed direct imports contribute bounded, request-scoped symbol
+references. Open unsaved buffers take priority. Source file events invalidate
+cached suggestions for tracked imports; older cores keep the open-document path.
+
+In 0.3.8, ordinary body edits reuse imported source reads while imports are
+unchanged. Import/file/workspace changes still invalidate references. Diagnostics
+expose bounded cache/read counts without paths, prompts or source text.

@@ -1,0 +1,199 @@
+{
+  "scope": "editor-validation-resumed-0.3.8",
+  "completed": true,
+  "passed": false,
+  "artifact": "superborrow-0.3.8-win32-x64.vsix",
+  "artifactSha256": "c32fac4482b3e57f431d513ccbbaf1db1ffe0702b96b7b7d2ab950e528f1c485",
+  "cursorLaunched": false,
+  "userStoppedComputerUse": true,
+  "notes": "Approved isolated test session only. No accepted latency sample was obtained: one acceptance unavailable, two typing-input failures, two focus-readiness failures. A later isolated-window inspection showed the editor and an agent onboarding panel. Its effect is undetermined; no privacy consent was acted on. Computer Use stopped on physical Escape. Owned test handles were terminal and a subsequent exact-profile process query found no matching Antigravity IDE processes. These observations do not establish model quality, latency, or Cursor superiority.",
+  "attempts": [
+    {
+      "id": "1794820357865",
+      "report": {
+        "completed": true,
+        "passed": false,
+        "scope": "editor-acceptance-latency-v1",
+        "app": "antigravity",
+        "appName": "Antigravity IDE",
+        "rounds": 2,
+        "corpusVersion": 1,
+        "corpusDigest": "140a70445baa153095502fc4446654b1ce089916f301c05ec29df102112fb194",
+        "cases": [
+          {
+            "name": "python-expression",
+            "round": 0,
+            "accepted": false,
+            "passed": false,
+            "status": "unavailable",
+            "observationLimitMs": 12000,
+            "providerStatus": {
+              "connected": true,
+              "enabled": true,
+              "mode": "ide",
+              "coreVersion": "0.3.8",
+              "preparedIdeAvailable": true,
+              "imports": {
+                "hits": 0,
+                "fileReads": 0,
+                "entries": 0,
+                "trackedPaths": 0,
+                "conservativeInvalidation": false
+              },
+              "speculative": {
+                "pending": 0,
+                "forwarded": 0,
+                "ready": false,
+                "shared": 0,
+                "hits": 0,
+                "cached": 0,
+                "misses": 0,
+                "trace": [
+                  {
+                    "event": "replace-session",
+                    "keyChanged": true,
+                    "requestedVersion": 1,
+                    "requestedOffset": 0
+                  },
+                  {
+                    "event": "start",
+                    "version": 1,
+                    "offset": 0,
+                    "pending": 1,
+                    "id": 1
+                  },
+                  {
+                    "event": "caller-abort",
+                    "version": 1,
+                    "offset": 0,
+                    "pending": 1,
+                    "requestedVersion": 1,
+                    "subscribers": 0
+                  },
+                  {
+                    "event": "cancel",
+                    "version": 1,
+                    "offset": 0,
+                    "pending": 1,
+                    "reason": "no callers"
+                  }
+                ]
+              },
+              "ignoredDocumentChanges": 4,
+              "ignoredCursorRequests": 0,
+              "lastIgnoredScheme": "vscode-userdata",
+              "ideAvailable": true,
+              "model": "antigravity:gemini-4-hydrogen-low",
+              "modelLabel": "Gemini 4 Hydrogen (Low)",
+              "nativeTabManaged": true,
+              "lastInlineLatencyMs": 309.23,
+              "continuationHits": 0,
+              "sharedRequests": 0,
+              "modelRequests": 1,
+              "lastDiscardReason": "provider error -32800: Request cancelled",
+              "acceptedCount": 0,
+              "lastError": ""
+            }
+          }
+        ],
+        "windowFocused": true,
+        "windowFocusLosses": 0,
+        "acceptanceCommand": "editor.action.inlineSuggest.commit",
+        "model": "antigravity:gemini-4-hydrogen-low",
+        "coreVersion": "0.3.8",
+        "editorVersion": "1.107.0",
+        "blocked": "No native suggestion accepted within the observation limit. Cause is undetermined; do not infer account/quota failure, model latency or correctness from this observation."
+      }
+    },
+    {
+      "id": "1794820495843",
+      "report": {
+        "completed": true,
+        "passed": false,
+        "scope": "editor-acceptance-latency-v1",
+        "app": "antigravity",
+        "appName": "Antigravity IDE",
+        "rounds": 2,
+        "corpusVersion": 1,
+        "corpusDigest": "140a70445baa153095502fc4446654b1ce089916f301c05ec29df102112fb194",
+        "cases": [],
+        "windowFocused": true,
+        "windowFocusLosses": 0,
+        "acceptanceCommand": "editor.action.inlineSuggest.commit",
+        "model": "antigravity:gemini-4-hydrogen-low",
+        "coreVersion": "0.3.8",
+        "editorVersion": "1.107.0",
+        "error": "Typing produced an unexpected fixture edit\n+ actual - expected\n\n+ 'def add_trial_0(a: int, b: int) -> int:\\n    return\\n'\n- 'def add_trial_0(a: int, b: int) -> int:\\n    return \\n'\n"
+      }
+    },
+    {
+      "id": "1794820566861",
+      "report": {
+        "completed": true,
+        "passed": false,
+        "scope": "editor-acceptance-latency-v1",
+        "app": "antigravity",
+        "appName": "Antigravity IDE",
+        "rounds": 2,
+        "corpusVersion": 1,
+        "corpusDigest": "140a70445baa153095502fc4446654b1ce089916f301c05ec29df102112fb194",
+        "cases": [],
+        "windowFocused": true,
+        "windowFocusLosses": 0,
+        "acceptanceCommand": "editor.action.inlineSuggest.commit",
+        "model": "antigravity:gemini-4-hydrogen-low",
+        "coreVersion": "0.3.8",
+        "editorVersion": "1.107.0",
+        "error": "Typing produced an unexpected fixture edit\n+ actual - expected\n\n+ 'def add_trial_0(a: int, b: int) -> int:\\n    return\\n'\n- 'def add_trial_0(a: int, b: int) -> int:\\n    return \\n'\n"
+      }
+    },
+    {
+      "id": "1794820730378",
+      "report": {
+        "completed": true,
+        "passed": false,
+        "scope": "editor-acceptance-latency-v1",
+        "app": "antigravity",
+        "appName": "Antigravity IDE",
+        "rounds": 2,
+        "corpusVersion": 1,
+        "corpusDigest": "140a70445baa153095502fc4446654b1ce089916f301c05ec29df102112fb194",
+        "cases": [],
+        "windowFocused": false,
+        "windowFocusLosses": 1,
+        "acceptanceCommand": "editor.action.inlineSuggest.commit",
+        "model": "antigravity:gemini-4-hydrogen-low",
+        "coreVersion": "0.3.8",
+        "editorVersion": "1.107.0",
+        "setup": "The owned synthetic editor is open; allow 30 seconds for focus inspection before timing.",
+        "error": "The isolated test window is not focused or lost focus during measurement. No foreground switching is automated; run only when this test window can remain focused.",
+        "blocked": "The isolated test window is not focused or lost focus during measurement. No foreground switching is automated; run only when this test window can remain focused.",
+        "failureKind": "readiness"
+      }
+    },
+    {
+      "id": "1794820840832",
+      "report": {
+        "completed": true,
+        "passed": false,
+        "scope": "editor-acceptance-latency-v1",
+        "app": "antigravity",
+        "appName": "Antigravity IDE",
+        "rounds": 2,
+        "corpusVersion": 1,
+        "corpusDigest": "140a70445baa153095502fc4446654b1ce089916f301c05ec29df102112fb194",
+        "cases": [],
+        "windowFocused": false,
+        "windowFocusLosses": 2,
+        "acceptanceCommand": "editor.action.inlineSuggest.commit",
+        "model": "antigravity:gemini-4-hydrogen-low",
+        "coreVersion": "0.3.8",
+        "editorVersion": "1.107.0",
+        "setup": "The owned synthetic editor is open; allow 60 seconds for focus inspection before timing.",
+        "error": "The isolated test window is not focused or lost focus during measurement. No foreground switching is automated; run only when this test window can remain focused.",
+        "blocked": "The isolated test window is not focused or lost focus during measurement. No foreground switching is automated; run only when this test window can remain focused.",
+        "failureKind": "readiness"
+      }
+    }
+  ]
+}

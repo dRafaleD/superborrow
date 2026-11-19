@@ -45,17 +45,20 @@ async function server(handler: (body: Record<string, unknown>, res: ServerRespon
 }
 
 test("concurrent documents correlate out-of-order reverse responses", { timeout: 10000 }, async () => {
-  let count = 0;
+  let secondStarted!: () => void;
+  const secondReady = new Promise<void>(resolve => { secondStarted = resolve; });
   const bridge = await setup(async params => {
     assert.equal(params.languageId, "typescript");
     assert.ok(params.prompt.includes("😀"));
     assert.ok(params.prompt.includes("<PRE>"));
-    const index = ++count;
-    await new Promise(resolve => setTimeout(resolve, index === 1 ? 40 : 1));
-    return { text: `reply${index}` };
+    // Tokio may dispatch the second job first. Identify snapshots by content,
+    // never by arrival order; hold the first answer until the second is ready.
+    if (params.prompt.includes("<PRE>const emoji = '😀 second';")) { secondStarted(); return { text: "reply2" }; }
+    await secondReady;
+    return { text: "reply1" };
   });
   try {
-    const second = { ...doc, uri: "file:///second.ts" };
+    const second = { ...doc, uri: "file:///second.ts", text: doc.text.replace("😀", "😀 second") };
     await bridge.updateDocument(second);
     const result = await Promise.all([bridge.requestCompletion(request), bridge.requestCompletion({ ...request, uri: second.uri })]);
     assert.deepEqual(result.map(r => [r.text, r.version, r.provider]), [["reply1", 1, "ide"], ["reply2", 1, "ide"]]);
@@ -99,6 +102,24 @@ test("document changes immediately cancel obsolete work", { timeout: 10000 }, as
   } finally { await bridge.shutdown(); }
 });
 
+test("document patches preserve CRLF and UTF-16 boundaries and cancel obsolete work", { timeout: 10000 }, async () => {
+  let started!: () => void;
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  const bridge = await setup(async () => { started(); return new Promise(() => {}); });
+  try {
+    const start = { line: 0, character: 15 };
+    const patch = { uri: doc.uri, baseVersion: 1, version: 2, start, end: { line: 0, character: 17 }, text: "💡" };
+    const rejected = assert.rejects(bridge.requestCompletion(request), code(-32801));
+    await ready;
+    await assert.rejects(bridge.patchDocument({ ...patch, start: { ...start, character: 16 } }), code(-32602));
+    await assert.rejects(bridge.patchDocument({ ...patch, baseVersion: 0 }), code(-32801));
+    assert.match((await bridge.prepareIdeCompletion(request)).qwenInfill!, /'😀';\r\nconsole\./);
+    await bridge.patchDocument(patch);
+    await rejected;
+    assert.match((await bridge.prepareIdeCompletion({ ...request, version: 2 })).qwenInfill!, /'💡';\r\nconsole\./);
+  } finally { await bridge.shutdown(); }
+});
+
 test("identical declarative configuration does not cancel a live completion", { timeout: 10000 }, async () => {
   let started!: () => void;
   let finish!: (value: { text: string }) => void;
@@ -110,6 +131,57 @@ test("identical declarative configuration does not cancel a live completion", { 
     await bridge.configure({ debounceMs: 0 });
     finish({ text: "still valid" });
     assert.equal((await result).text, "still valid");
+  } finally { await bridge.shutdown(); }
+});
+
+test("IDE-only failures never contact a local server", { timeout: 10000 }, async () => {
+  let calls = 0;
+  const mock = await server((_body, res) => { calls++; res.end('{}'); });
+  const bridge = await setup(unavailable, { endpoint: mock.endpoint, ideAvailable: true });
+  try {
+    await assert.rejects(bridge.requestCompletion(request), code(-32003));
+    assert.equal(calls, 0);
+  } finally { await bridge.shutdown(); await mock.close(); }
+});
+
+test("explicit abstention from the IDE model produces no inserted marker", { timeout: 10000 }, async () => {
+  const bridge = await setup(async params => {
+    assert.match(params.prompt, /return exactly <NO_COMPLETION>/);
+    return { text: "<NO_COMPLETION>" };
+  });
+  try { assert.equal((await bridge.requestCompletion(request)).text, ""); }
+  finally { await bridge.shutdown(); }
+});
+
+test("IDE context can be prepared without inference or a generation tied to document updates", { timeout: 10000 }, async () => {
+  let calls = 0;
+  const bridge = await setup(async () => { calls++; return { text: "new" }; });
+  try {
+    const prepared = await bridge.prepareIdeCompletion(request);
+    assert.equal(prepared.version, 1); assert.equal(prepared.kind, "inline");
+    assert.ok(prepared.prompt.includes("<PRE>")); assert.equal(calls, 0);
+    await bridge.updateDocument({ ...doc, version: 2 });
+    assert.equal(prepared.version, 1);
+    await assert.rejects(bridge.prepareIdeCompletion(request), code(-32801));
+    assert.equal((await bridge.prepareIdeCompletion({ ...request, version: 2 })).version, 2);
+    assert.equal(calls, 0);
+    assert.equal((await bridge.requestCompletion({ ...request, version: 2 })).text, "new");
+    assert.equal(calls, 1);
+  } finally { await bridge.shutdown(); }
+});
+
+test("nearby diagnostics reach the IDE within the full prompt byte budget; invalid or stale input is bounded", { timeout: 10000 }, async () => {
+  let prompt = "";
+  const bridge = await setup(async params => { prompt = params.prompt; return { text: "warn" }; }, { maxContextBytes: 2048 });
+  const diagnostic = { position: { line: 1, character: 0 }, severity: "error" as const, message: "Property logg does not exist; use log" };
+  try {
+    await bridge.requestCompletion({ ...request, diagnostics: [diagnostic] });
+    assert.ok(prompt.includes(diagnostic.message));
+    assert.ok(Buffer.byteLength(prompt, "utf8") <= 2048);
+    await assert.rejects(bridge.requestCompletion({ ...request, diagnostics: Array(9).fill(diagnostic) }), code(-32602));
+    await assert.rejects(bridge.requestCompletion({ ...request, diagnostics: [{ ...diagnostic, message: "x".repeat(513) }] }), code(-32602));
+    await bridge.requestCompletion({ ...request, diagnostics: [{ ...diagnostic, position: { line: 999, character: 0 }, message: "stale diagnostic" }] });
+    assert.ok(!prompt.includes("stale diagnostic"));
   } finally { await bridge.shutdown(); }
 });
 
@@ -226,4 +298,32 @@ test("invalid endpoints and incomplete streams fail without suggestions", { time
     await assert.rejects(bridge.configure({ endpoint: "http://example.com/infill" }), code(-32602));
     await assert.rejects(bridge.requestCompletion({ ...request, mode: "local" }), code(-32004));
   } finally { await bridge.shutdown(); await mock.close(); }
+});
+
+test("request-scoped imported types reach the prompt without persisting or overriding unsaved buffers", async () => {
+  const bridge = await setup();
+  try {
+    const text = "import type { Invoice } from './invoice';\nfunction due(value: Invoice) { return value.";
+    const source = { uri: "file:///project/active.ts", version: 1, languageId: "typescript", text };
+    const related = { uri: "file:///project/invoice.ts", version: 1, languageId: "typescript", text: "export interface Invoice { netCents: number; taxBps: number; }" };
+    await bridge.updateDocument(source);
+    const params: CompletionParams = { uri: source.uri, version: 1, position: { line: 1, character: text.split('\n')[1].length }, mode: "ide", relatedDocuments: [related] };
+    const prepared = await bridge.prepareIdeCompletion(params);
+    assert.match(prepared.prompt, /netCents: number/); assert.match(prepared.prompt, /taxBps: number/);
+    assert.ok(Buffer.byteLength(prepared.prompt) <= 24000);
+    const without = await bridge.prepareIdeCompletion({ ...params, relatedDocuments: [] });
+    assert.doesNotMatch(without.prompt, /netCents/);
+    await bridge.updateDocument({ ...related, text: "export interface Invoice { unsavedCents: number; }" });
+    const unsaved = await bridge.prepareIdeCompletion(params);
+    assert.match(unsaved.prompt, /unsavedCents: number/); assert.doesNotMatch(unsaved.prompt, /netCents/);
+  } finally { await bridge.shutdown(); }
+});
+
+test("untrusted RPC callers cannot supply unbounded imported context", async () => {
+  const bridge = await setup();
+  try {
+    const related = { uri: 'file:///related.ts', version: 1, languageId: 'typescript', text: 'export interface Invoice { value: number }' };
+    await assert.rejects(bridge.prepareIdeCompletion({ ...request, relatedDocuments: Array.from({ length: 5 }, () => related) }), code(-32602));
+    await assert.rejects(bridge.prepareIdeCompletion({ ...request, relatedDocuments: [{ ...related, text: 'x'.repeat(65537) }] }), code(-32602));
+  } finally { await bridge.shutdown(); }
 });

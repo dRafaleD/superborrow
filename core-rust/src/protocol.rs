@@ -15,6 +15,17 @@ pub struct Position {
     pub character: usize,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentPatch {
+    pub uri: String,
+    pub base_version: u32,
+    pub version: u32,
+    pub start: Position,
+    pub end: Position,
+    pub text: String,
+}
+
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
@@ -37,6 +48,24 @@ pub struct Completion {
     pub instruction: String,
     #[serde(default)]
     pub explicit: bool,
+    #[serde(default)]
+    pub diagnostics: Vec<Diagnostic>,
+    #[serde(default, rename = "relatedDocuments")]
+    pub related_documents: Vec<Document>,
+}
+
+#[derive(Deserialize)]
+pub struct Diagnostic {
+    pub position: Position,
+    pub severity: DiagnosticSeverity,
+    pub message: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DiagnosticSeverity {
+    Error,
+    Warning,
 }
 
 #[derive(Clone, Copy, Default, Deserialize, PartialEq)]

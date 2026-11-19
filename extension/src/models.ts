@@ -5,6 +5,12 @@ import { AntigravityBridge, AntigravityRpc } from "./antigravity";
 /** Opt-in extension contract. Unknown internal methods/commands are never invoked. */
 export interface CompletionAdapterV1 {
   version: 1;
+  readonly enabled?: boolean;
+  readonly modelLabel?: string;
+  readonly modelId?: string;
+  readonly supportsConcurrentRequests?: boolean;
+  prepare?(): Promise<void>;
+  selectModel?(): Promise<void>;
   generateCompletion(params: IdeModelParams, token: vscode.CancellationToken): Promise<IdeModelResult>;
 }
 
@@ -15,20 +21,26 @@ export class ModelBridge {
   private initialization: Promise<void> | undefined;
   private initializationKey = "";
 
-  get available(): boolean { return !!this.model || !!this.adapter || !!this.antigravity?.label; }
-  get label(): string { return this.antigravity?.label ?? this.model?.name ?? (this.adapter ? "Extension adapter" : "IDE model unavailable"); }
-  get modelId(): string | undefined { return this.antigravity?.slug ? `antigravity:${this.antigravity.slug}` : this.model ? `vscode:${this.model.id}` : undefined; }
+  get available(): boolean { return !!this.model || (!!this.adapter && this.adapter.enabled !== false) || !!this.antigravity?.label; }
+  get label(): string { return this.antigravity?.label ?? this.model?.name ?? this.adapter?.modelLabel ?? (this.adapter ? "Extension adapter" : "IDE model unavailable"); }
+  get concurrent(): boolean { return this.adapter?.supportsConcurrentRequests !== false; }
+  get modelId(): string | undefined { return this.antigravity?.slug ? `antigravity:${this.antigravity.slug}` : this.model ? `vscode:${this.model.id}` : this.adapter?.modelId; }
   reset(): void { this.model = undefined; this.adapter = undefined; this.antigravity = undefined; this.initializationKey = ""; }
 
   async initialize(): Promise<void> {
     const config = vscode.workspace.getConfiguration("superborrow");
     const configured = config.get<string>("ideModel", "auto");
-    const adapterId = config.get<string>("ideAdapterExtension", "");
+    const adapterId = this.adapterId();
     const key = `${adapterId}:${configured}`;
     if (this.available && this.initializationKey === key) return;
     if (this.initialization) { await this.initialization; if (this.initializationKey === key && this.available) return; }
     this.initialization = this.restore(configured, adapterId).then(() => { this.initializationKey = key; }).finally(() => { this.initialization = undefined; });
     return this.initialization;
+  }
+
+  private adapterId(): string {
+    if (vscode.env.appName.startsWith("Duskline IDE")) return "duskline.duskline-local";
+    return vscode.workspace.getConfiguration("superborrow").get<string>("ideAdapterExtension", "");
   }
 
   private async restore(configured: string, adapterId: string): Promise<void> {
@@ -39,6 +51,7 @@ export class ModelBridge {
       const api = await extension.activate();
       const adapter: CompletionAdapterV1 | undefined = api?.superborrowCompletionProvider;
       if (adapter?.version !== 1 || typeof adapter.generateCompletion !== "function") throw new Error("Extension does not export superborrowCompletionProvider v1");
+      await adapter.prepare?.();
       this.adapter = adapter;
       return;
     }
@@ -64,7 +77,7 @@ export class ModelBridge {
   }
 
   async select(): Promise<void> {
-    const adapterId = vscode.workspace.getConfiguration("superborrow").get<string>("ideAdapterExtension", "");
+    const adapterId = this.adapterId();
     if (adapterId) {
       const extension = vscode.extensions.getExtension(adapterId);
       if (!extension) throw new Error(`Adapter extension not installed: ${adapterId}`);
@@ -72,6 +85,7 @@ export class ModelBridge {
       const adapter: CompletionAdapterV1 | undefined = api?.superborrowCompletionProvider;
       if (adapter?.version !== 1 || typeof adapter.generateCompletion !== "function") throw new Error("Extension does not export superborrowCompletionProvider v1");
       this.adapter = adapter; this.model = undefined; this.antigravity = undefined;
+      await adapter.selectModel?.();
       return;
     }
     const choices: Array<{ label: string; description: string; detail: string; id: string }> = [];

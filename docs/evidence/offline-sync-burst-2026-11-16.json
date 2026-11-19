@@ -1,0 +1,66 @@
+{
+  "scope": "offline-document-sync-burst",
+  "synthetic": true,
+  "inferenceCalls": 0,
+  "editorLaunched": false,
+  "updates": 40,
+  "rounds": 3,
+  "cases": [
+    {
+      "strategy": "fifo",
+      "round": 0,
+      "drainedMs": 92.19,
+      "transmissions": 40,
+      "sourceBytesSent": 4991152,
+      "latestVersion": 41,
+      "latestContextVerified": true
+    },
+    {
+      "strategy": "coalesced",
+      "round": 0,
+      "drainedMs": 3.02,
+      "transmissions": 1,
+      "sourceBytesSent": 124779,
+      "latestVersion": 41,
+      "latestContextVerified": true
+    },
+    {
+      "strategy": "coalesced",
+      "round": 1,
+      "drainedMs": 2.65,
+      "transmissions": 1,
+      "sourceBytesSent": 124779,
+      "latestVersion": 41,
+      "latestContextVerified": true
+    },
+    {
+      "strategy": "fifo",
+      "round": 1,
+      "drainedMs": 87.79,
+      "transmissions": 40,
+      "sourceBytesSent": 4991152,
+      "latestVersion": 41,
+      "latestContextVerified": true
+    },
+    {
+      "strategy": "fifo",
+      "round": 2,
+      "drainedMs": 90.25,
+      "transmissions": 40,
+      "sourceBytesSent": 4991152,
+      "latestVersion": 41,
+      "latestContextVerified": true
+    },
+    {
+      "strategy": "coalesced",
+      "round": 2,
+      "drainedMs": 2.84,
+      "transmissions": 1,
+      "sourceBytesSent": 124779,
+      "latestVersion": 41,
+      "latestContextVerified": true
+    }
+  ],
+  "coreVersion": "0.3.5",
+  "passed": true
+}

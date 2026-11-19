@@ -1,0 +1,37 @@
+{
+  "completed": true,
+  "passed": true,
+  "scope": "continuation",
+  "app": "Antigravity IDE",
+  "trusted": true,
+  "cases": [
+    {
+      "name": "typing through a real model completion reuses its remainder without inference",
+      "passed": true,
+      "provider": "ide",
+      "model": "antigravity:gemini-4-hydrogen-low",
+      "discardedAttempts": 1,
+      "extraModelRequests": 0,
+      "continuationLatenciesMs": [
+        0.22,
+        0.14,
+        0.28
+      ],
+      "elapsedMs": 3536
+    }
+  ],
+  "startup": {
+    "connected": true,
+    "enabled": true,
+    "mode": "hybrid",
+    "coreVersion": "0.3.1",
+    "ideAvailable": true,
+    "model": "antigravity:gemini-4-hydrogen-low",
+    "modelLabel": "Gemini 4 Hydrogen (Low)",
+    "nativeTabManaged": false,
+    "continuationHits": 0,
+    "modelRequests": 0,
+    "acceptedCount": 0,
+    "lastError": ""
+  }
+}

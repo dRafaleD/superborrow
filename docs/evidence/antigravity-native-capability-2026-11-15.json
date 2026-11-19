@@ -1,0 +1,7 @@
+{
+  "completed": true,
+  "passed": false,
+  "scope": "native-completion-capability",
+  "cases": [],
+  "error": "No exported native completion RPC"
+}

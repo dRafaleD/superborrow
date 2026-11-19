@@ -1,7 +1,7 @@
 # Superborrow
 
 Antigravity IDE / VS Code için Rust bağlam motoru ve TypeScript istemcisiyle
-yerel veya IDE modeli kullanan hibrit kod tamamlama. Sürüm **0.3.1**.
+Antigravity modellerini varsayılan kullanan kod tamamlama. Sürüm **0.3.9**.
 
 ## Neler çalışıyor?
 
@@ -11,6 +11,12 @@ yerel veya IDE modeli kullanan hibrit kod tamamlama. Sürüm **0.3.1**.
 - llama.cpp `/infill`, Ollama `/api/generate`, yerel OpenAI uyumlu `/v1/completions`.
   SSE/NDJSON akışı, paylaşılan HTTP istemcisi, iptal ve zaman aşımı.
 - Hayalet metin, belge olayları, debounce, kısa ömürlü öneri önbelleği ve mod seçici.
+- Kullanılan adlara göre sıralanan export/tip/sınıf bağlamı; uzak importlar ve
+  imleç yakınındaki hata/uyarılar. Aynı isteklerin ortak model çağrısı ve yazarken
+  önerinin kalanını yeni çağrı olmadan yeniden kullanma.
+- Güvenilen çalışma alanında açık olmayan doğrudan TS/JS importlarından sınırlı
+  tip/API bağlamı: en fazla dört dosya, dosya başına 64 KB. Kapatmak için
+  `superborrow.importContext: false`; dosya dışlamaları geçerlidir.
 - Antigravity hesabındaki modellerin otomatik keşfi ve açılışta bağlantı;
   kalıcı model seçimi, `vscode.lm` ve özel eklenti adaptörü desteği.
 - Türkçe/İngilizce yorumdan kod üretme: örneğin `// toplama fonksiyonu oluştur`
@@ -18,11 +24,10 @@ yerel veya IDE modeli kullanan hibrit kod tamamlama. Sürüm **0.3.1**.
 - **Suggest Next Edit**: seçili kod veya mevcut satır için öneri, fark önizlemesi,
   kullanıcı uygulaması ve arada değişen belge için sürüm kontrolü.
 
-Next Edit bu sürümde seçili aralıkla sınırlıdır; sonraki düzenleme konumunu
-otomatik tahmin etmez ve birden fazla dosyayı düzenlemez. Supermaven düzeyinde
-gecikme/kalite iddiası yoktur. Antigravity 1.11 eklentisinin dışa açtığı model
-istemcisi kullanılır; gelecekte API değişirse hata tanılarda gösterilir ve Hybrid
-yerel sağlayıcıya dönebilir. Oturum/anahtar dosyaları okunmaz.
+**Suggest Next Edit** komutu seçili aralığı veya imlecin bulunduğu satırı işler.
+Duskline, dil servisinin belirlediği import ve yeniden adlandırma önerilerini de
+Tab ile sunabilir. Antigravity entegrasyonu, 1.11 eklentisinin dışa açtığı model
+istemcisini kullanır. Hybrid mod, hata durumunda yerel sağlayıcıya dönebilir.
 
 ## Kurulum ve geliştirme
 
@@ -36,7 +41,7 @@ npm --prefix extension test
 cargo test --locked --manifest-path core-rust/Cargo.toml
 cargo clippy --locked --manifest-path core-rust/Cargo.toml --all-targets -- -D warnings
 npm --prefix extension run package:windows
-& "$env:LOCALAPPDATA\Programs\Antigravity IDE\bin\antigravity-ide.cmd" --install-extension "$PWD\packages\superborrow-0.3.1-win32-x64.vsix" --force
+& "$env:LOCALAPPDATA\Programs\Antigravity IDE\bin\antigravity-ide.cmd" --install-extension "$PWD\packages\superborrow-0.3.9-win32-x64.vsix" --force
 ```
 
 Paket Windows x64 Rust çekirdeğini içerir. Kurulumdan sonra **Developer: Reload
@@ -44,7 +49,7 @@ Window** çalıştır. Güvenilen çalışma alanında motor otomatik başlar. G
 bu klasörü açıp F5 kullanılabilir. Farklı binary: `superborrow.corePath`.
 
 Antigravity'de **Antigravity Tab: Use Superborrow for Tab** komutu, Superborrow'u
-IDE öncelikli hibrit sağlayıcı yapar ve çakışan yerleşik Tab sağlayıcısını kapatır.
+doğrudan Antigravity/IDE sağlayıcısını kullanacak şekilde ayarlar ve çakışan yerleşik Tab sağlayıcısını kapatır.
 Önceki yerleşik Tab ayarı saklanır; **Restore Antigravity Tab** onu geri yükleyip
 Superborrow'u duraklatır. Yalnızca `tabEnabled` tercihi değiştirilir; model hesabı,
 sohbet, izinler ve gizlilik tercihleri değiştirilmez. Bu geçiş kalıcı bir sağlayıcı
@@ -73,7 +78,7 @@ OpenAI uyumlu yerel sunucu için `localApi: "openAi"`, tam `/v1/completions`
 adresi ve model adı gerekir. Bu adaptör sohbet `/chat/completions` protokolünü
 kullanmaz. Codestral ham token düzeni `fimFormat: "codestral"` ile seçilir.
 
-Durum çubuğuna tıklayarak **Hybrid → Local → Antigravity** geçişi yapılır.
+Varsayılan mod **Antigravity (ide)**: istekler seçilen IDE modeline gider; yerel sunucuya başvuru veya yerel geri dönüş yapılmaz. Durum çubuğuna tıklayarak **Hybrid → Local → Antigravity** geçişi yapılır.
 Local yalnızca yerel modele gider. Hybrid basit satırlarda yereli, blok başlangıcı,
 büyük bağlam ve Next Edit için seçilmiş IDE modelini tercih eder. Sağlayıcı hata
 verirse kullanılabilir diğer sağlayıcıyı dener. Yerel gecikme bütçesi aşıldığında
@@ -106,7 +111,7 @@ ve boş gövde yerine uygulama istenir; açıkça istenen iskeletler desteklenir
 | Antigravity Tab: Switch Mode | Modlar arasında geç |
 | Antigravity Tab: Pause / Resume | Tamamlamayı ve belge toplamayı durdur/başlat |
 | Antigravity Tab: Select IDE Model | Antigravity / vscode.lm modelini kalıcı seç |
-| Antigravity Tab: Use Superborrow for Tab | IDE öncelikli hibrit akışı aç, yerleşik Tab çakışmasını kaldır |
+| Antigravity Tab: Use Superborrow for Tab | Doğrudan IDE model akışını aç, yerleşik Tab çakışmasını kaldır |
 | Antigravity Tab: Restore Antigravity Tab | Önceki yerleşik Tab ayarını geri yükle, Superborrow'u duraklat |
 | Antigravity Tab: Inspect Available Models | Modelleri, eklenti export adlarını ve aday komutları listele |
 | Antigravity Tab: Suggest Next Edit | Seçili kod / mevcut satır için fark önizlemesi |
@@ -128,6 +133,12 @@ Bağlam ve öneriler yalnızca bellekte tutulur. Prompt/kaynak metni loglanmaz.
 Yerel HTTP istemcisi yalnızca loopback adres kabul eder; yönlendirme/proxy yoktur.
 IDE/Hybrid modunda seçilmiş IDE sağlayıcısına kod bağlamı gönderilebilir.
 Özel proje notları `superborrow.projectContext` ile açıkça girilir.
+
+IDE modunda `superborrow.speculativeTyping` açıkken, yazılan metinle birebir
+eşleşen eski model yanıtının kalan kısmı kullanılabilir. Eski tahmin ile güncel
+istek birlikte yarışır; istemcide en çok iki model işi tutulur. Fazladan model
+işi/kota tüketebilir; ayarı `false` yaparak sürüme bağlı tek istek akışına
+dönebilirsin. Öneriler kendiliğinden uygulanmaz.
 
 `maxContextBytes`, `maxTokens`, `debounceMs`, `requestTimeoutMs` ayarlanabilir.
 İptal, değişen belge, kapanan dosya ve yeni istek eski yanıtların gösterilmesini

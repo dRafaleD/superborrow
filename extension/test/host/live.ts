@@ -8,7 +8,11 @@ import { ModelBridge } from "../../src/models";
 export async function run(): Promise<void> {
   const cases: Array<Record<string, unknown>> = [];
   let compositeEnabled = false;
-  const report: Record<string, unknown> = { completed: false, passed: false, app: vscode.env.appName, trusted: vscode.workspace.isTrusted, cases };
+  const continuationOnly = process.env.SUPERBORROW_LIVE_FOCUS === "continuation";
+  const inflightOnly = process.env.SUPERBORROW_LIVE_FOCUS === "inflight";
+  const pipelineOnly = process.env.SUPERBORROW_LIVE_FOCUS === "pipeline";
+  const focused = continuationOnly || inflightOnly || pipelineOnly;
+  const report: Record<string, unknown> = { completed: false, passed: false, scope: continuationOnly ? "continuation" : inflightOnly ? "inflight" : pipelineOnly ? "pipeline" : "full", app: vscode.env.appName, trusted: vscode.workspace.isTrusted, cases };
   const save = () => writeFileSync(process.env.SUPERBORROW_LIVE_REPORT!, JSON.stringify(report, null, 2));
   const runCase = async (name: string, work: () => Promise<Record<string, unknown>>) => {
     const start = Date.now();
@@ -21,10 +25,13 @@ export async function run(): Promise<void> {
     assert.ok(extension);
     const api = await extension.activate();
     await api.ready;
+    // The signed-in host may need a retry after its initial discovery timeout.
+    const discoveryDeadline = Date.now() + 40000;
+    while (!api.getStatus().ideAvailable && Date.now() < discoveryDeadline) await new Promise(resolve => setTimeout(resolve, 250));
     report.startup = api.getStatus(); save();
     assert.equal(api.getStatus().connected, true);
     assert.equal(api.getStatus().ideAvailable, true);
-    assert.equal(api.getStatus().coreVersion, "0.3.1");
+    assert.equal(api.getStatus().coreVersion, "0.3.9");
     await vscode.commands.executeCommand("superborrow.enableCompositeTab");
     compositeEnabled = true;
     assert.equal(api.getStatus().nativeTabManaged, true);
@@ -48,9 +55,12 @@ export async function run(): Promise<void> {
       { language: "css", text: "/* arka planı siyah, yazıları beyaz yap */\n", pattern: /background|color/ },
     ];
     for (const sample of samples) {
+      if (focused) break;
       await runCase(`${sample.language}: ${sample.text.startsWith("//") || sample.text.startsWith("#") || sample.text.startsWith("/*") ? "Turkish comment intent" : "automatic inline completion"}`, async () => {
         const doc = await vscode.workspace.openTextDocument({ language: sample.language, content: sample.text });
         const position = doc.positionAt(sample.text.length);
+        const fixtureEditor = await vscode.window.showTextDocument(doc);
+        fixtureEditor.selection = new vscode.Selection(position, position);
         let list: vscode.InlineCompletionItem[] | undefined;
         let discardedAttempts = 0;
         for (let attempt = 0; attempt < 4; attempt++) {
@@ -84,6 +94,74 @@ export async function run(): Promise<void> {
       });
     }
 
+    if (!inflightOnly) await runCase("typing through a real model completion reuses its remainder without inference", async () => {
+      const doc = await vscode.workspace.openTextDocument({ language: "python", content: "def add(a, b):\n    return " });
+      const fixtureEditor = await vscode.window.showTextDocument(doc);
+      const initial = doc.positionAt(doc.getText().length);
+      fixtureEditor.selection = new vscode.Selection(initial, initial);
+      const token = new vscode.CancellationTokenSource();
+      const inlineContext = { triggerKind: vscode.InlineCompletionTriggerKind.Invoke, selectedCompletionInfo: undefined };
+      try {
+        let items: vscode.InlineCompletionItem[] | undefined;
+        let discardedAttempts = 0;
+        for (let attempt = 0; attempt < 4; attempt++) {
+          const first = await api.provideInlineCompletionItems(doc, doc.positionAt(doc.getText().length), inlineContext, token.token);
+          items = Array.isArray(first) ? first : first?.items;
+          if (items?.length || !/cancel|obsolete|context changed/i.test(api.getStatus().lastDiscardReason ?? "")) break;
+          discardedAttempts++;
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        assert.ok(items?.length, JSON.stringify(api.getStatus()));
+        const suggestion = String(items[0].insertText);
+        assert.match(suggestion, /a\s*\+\s*b/);
+        const requests = api.getStatus().modelRequests;
+        const hits = api.getStatus().continuationHits;
+        const latencies: number[] = [];
+        for (let index = 0; index < Math.min(3, suggestion.length - 1); index++) {
+          assert.equal(await fixtureEditor.edit(edit => edit.insert(doc.positionAt(doc.getText().length), suggestion[index])), true);
+          const nextCursor = doc.positionAt(doc.getText().length);
+          fixtureEditor.selection = new vscode.Selection(nextCursor, nextCursor);
+          const next = await api.provideInlineCompletionItems(doc, doc.positionAt(doc.getText().length), inlineContext, token.token);
+          const remainder = Array.isArray(next) ? next : next?.items;
+          assert.equal(remainder?.[0].insertText, suggestion.slice(index + 1));
+          assert.equal(api.getStatus().modelRequests, requests, "Matching typing must not call the model again");
+          latencies.push(api.getStatus().lastInlineLatencyMs!);
+        }
+        assert.equal(api.getStatus().continuationHits - hits, latencies.length);
+        return { provider: api.getStatus().lastProvider, model: api.getStatus().model, discardedAttempts, extraModelRequests: 0, continuationLatenciesMs: latencies };
+      } finally { token.dispose(); }
+    });
+
+    if (!continuationOnly) await runCase("overlapping editor callers share one real model request and isolate cancellation", async () => {
+      const doc = await vscode.workspace.openTextDocument({ language: "python", content: "def add(a, b):\n    return " });
+      const fixtureEditor = await vscode.window.showTextDocument(doc);
+      const initial = doc.positionAt(doc.getText().length);
+      fixtureEditor.selection = new vscode.Selection(initial, initial);
+      const inlineContext = { triggerKind: vscode.InlineCompletionTriggerKind.Invoke, selectedCompletionInfo: undefined };
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const tokens = Array.from({ length: 3 }, () => new vscode.CancellationTokenSource());
+        const before = api.getStatus();
+        try {
+          const pending = tokens.map(token => api.provideInlineCompletionItems(doc, doc.positionAt(doc.getText().length), inlineContext, token.token));
+          tokens[0].cancel();
+          const lists = (await Promise.all(pending)).map(value => Array.isArray(value) ? value : value?.items);
+          if (!lists[1]?.length && /cancel|obsolete|context changed/i.test(api.getStatus().lastDiscardReason ?? "") && attempt < 3) {
+            await new Promise(resolve => setTimeout(resolve, 100)); continue;
+          }
+          assert.ok(!lists[0]?.length, "Cancelled caller must not receive a suggestion");
+          assert.ok(lists[1]?.length && lists[2]?.length, JSON.stringify(api.getStatus()));
+          assert.equal(lists[1][0].insertText, lists[2][0].insertText);
+          assert.match(String(lists[1][0].insertText), /a\s*\+\s*b/);
+          const after = api.getStatus();
+          assert.equal(after.modelRequests - before.modelRequests, 1, "All three callers must share one inference");
+          assert.equal(after.sharedRequests - before.sharedRequests, 2);
+          return { model: after.model, provider: after.lastProvider, discardedAttempts: attempt, callers: 3, cancelledCallers: 1, modelRequests: 1, sharedRequests: 2, lastInlineLatencyMs: after.lastInlineLatencyMs };
+        } finally { for (const token of tokens) token.dispose(); }
+      }
+      throw new Error("No stable inference attempt");
+    });
+
+    if (focused) { report.passed = true; return; }
     await vscode.workspace.getConfiguration("editor").update("inlineSuggest.enabled", true, vscode.ConfigurationTarget.Global);
     for (const automatic of [
       { name: "automatic edit trigger and standard Tab acceptance command", before: "def add(a, b):\n    return", edit: " " },

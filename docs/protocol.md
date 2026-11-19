@@ -12,8 +12,10 @@ client IDs are numbers; core reverse IDs are `core:<counter>` strings.
 | initialize | TS → Rust | `{protocolVersion:1}` → `{protocolVersion:1,phase:4,version,capabilities}` |
 | configure | TS → Rust | Config object (omitted keys use defaults) → null |
 | updateDocument | TS → Rust | `{uri,languageId,version,text}` → null |
+| patchDocument | TS → Rust | `{uri,baseVersion,version,start,end,text}` → null |
 | closeDocument | TS → Rust | `{uri}` → null |
 | requestCompletion | TS → Rust | Completion request → completion result |
+| prepareIdeCompletion | TS → Rust | Completion request → `{version,prompt,languageId,maxTokens,kind}`; no inference |
 | cancelRequest | either | notification `{id}` |
 | requestIdeModel | Rust → TS | Model request → `{text}` |
 | shutdown | TS → Rust | no parameters → null and exit |
@@ -59,6 +61,24 @@ optional `instruction`. End must follow start. Selected bytes are bounded by
 `min(16384,maxContextBytes/4)`, instruction by `min(2048,maxContextBytes/8)`.
 `explicit:true` skips debounce. Modes: local / ide / hybrid.
 
+Optional `diagnostics` defaults to `[]`. Each entry is
+`{position:{line,character},severity:"error"|"warning",message}`. The core rejects
+more than eight entries or messages exceeding 512 UTF-8 bytes. Invalid source
+positions and starts farther than 32 lines from the requested cursor are ignored
+as advisory data that may lag an edit. These optional fields preserve profile v1
+compatibility. The prompt byte budget includes instructions and chat framing.
+
+With initialize capability `relatedDocuments:true`, completion requests may also
+include `relatedDocuments:[{uri,languageId,version,text}]`. At most four references
+are accepted, each at most 65536 UTF-8 bytes, URI at most 4096 bytes and language
+identifier at most 64 bytes. They are parsed only for request-scoped symbol
+references and never enter persistent document/history storage. A synchronized
+document with the same URI takes precedence, including unsaved buffers.
+The extension reads only direct relative TS/JS imports inside the canonical
+trusted workspace root; no package resolution or recursive scan is performed.
+Older cores do not receive this optional field from the extension.
+
+
 Result: `{text,version,provider:"local"|"ide",fallback:boolean,elapsedMs:number}`.
 elapsedMs measures router/inference time, excluding core debounce, editor
 dispatch, context construction and ghost-text rendering. It is not end-to-end
@@ -74,6 +94,13 @@ Updates require increasing versions. A change or close invalidates pending
 results immediately. A newer completion on the same document supersedes old
 work; different documents can complete out of order. Late replies are ignored.
 
+When the core advertises `documentPatches`, the client can replace a single
+UTF-16 range using `patchDocument`. The range refers to the acknowledged
+`baseVersion`. The replacement is limited to 8 KiB and the document size limit
+still applies. A missing or mismatched base leaves the document unchanged. The
+client sends a full snapshot when coalesced edits skip the patch's base or a
+patch is rejected.
+
 | Error | Meaning |
 | --- | --- |
 | -32700 / -32600 / -32601 / -32602 | Parse / envelope / method / parameters |
@@ -87,3 +114,12 @@ work; different documents can complete out of order. Late replies are ignored.
 | -32801 | Obsolete version / superseded request / changed or closed document |
 
 Reference: [JSON-RPC 2.0](https://www.jsonrpc.org/specification).
+
+`capabilities.preparedIdeCompletion:true` advertises the optional prepared path.
+The extension synchronizes a snapshot and prepares its prompt inside one
+DocumentSync queue operation, so newer updates cannot overtake preparation.
+Preparing creates no generation job and does not freeze document updates.
+The IDE client owns generation deadlines/cancellation and reconciles typed text
+against the immutable prompt snapshot. Older cores without this capability use
+`requestCompletion`. Local/Hybrid generation and explicit Next Edit keep their
+existing core routing/cancellation semantics.

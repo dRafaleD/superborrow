@@ -1,0 +1,146 @@
+{
+  "completed": true,
+  "passed": true,
+  "scope": "context-before-after",
+  "cases": [
+    {
+      "name": "exported type fields",
+      "round": 0,
+      "variant": "baseline",
+      "passed": false,
+      "elapsedMs": 1682,
+      "providerMs": 1680,
+      "expected": "tenderCode",
+      "suggestion": "currency"
+    },
+    {
+      "name": "exported type fields",
+      "round": 0,
+      "variant": "candidate",
+      "passed": true,
+      "elapsedMs": 1518,
+      "providerMs": 1516,
+      "expected": "tenderCode",
+      "suggestion": "tenderCode"
+    },
+    {
+      "name": "same-file declaration outside cursor window",
+      "round": 0,
+      "variant": "baseline",
+      "passed": false,
+      "elapsedMs": 1540,
+      "providerMs": 1538,
+      "expected": "visibleLabel",
+      "suggestion": "displayName"
+    },
+    {
+      "name": "same-file declaration outside cursor window",
+      "round": 0,
+      "variant": "candidate",
+      "passed": true,
+      "elapsedMs": 2060,
+      "providerMs": 2054,
+      "expected": "visibleLabel",
+      "suggestion": "visibleLabel"
+    },
+    {
+      "name": "nearby diagnostic property hint",
+      "round": 0,
+      "variant": "baseline",
+      "passed": false,
+      "elapsedMs": 1688,
+      "providerMs": 1685,
+      "expected": "displayLabelX",
+      "suggestion": "label"
+    },
+    {
+      "name": "nearby diagnostic property hint",
+      "round": 0,
+      "variant": "candidate",
+      "passed": true,
+      "elapsedMs": 1603,
+      "providerMs": 1598,
+      "expected": "displayLabelX",
+      "suggestion": "displayLabelX"
+    },
+    {
+      "name": "exported type fields",
+      "round": 1,
+      "variant": "candidate",
+      "passed": true,
+      "elapsedMs": 1699,
+      "providerMs": 1695,
+      "expected": "tenderCode",
+      "suggestion": "tenderCode"
+    },
+    {
+      "name": "exported type fields",
+      "round": 1,
+      "variant": "baseline",
+      "passed": false,
+      "elapsedMs": 1551,
+      "providerMs": 1549,
+      "expected": "tenderCode",
+      "suggestion": "currency"
+    },
+    {
+      "name": "same-file declaration outside cursor window",
+      "round": 1,
+      "variant": "candidate",
+      "passed": true,
+      "elapsedMs": 1474,
+      "providerMs": 1467,
+      "expected": "visibleLabel",
+      "suggestion": "visibleLabel"
+    },
+    {
+      "name": "same-file declaration outside cursor window",
+      "round": 1,
+      "variant": "baseline",
+      "passed": false,
+      "elapsedMs": 2024,
+      "providerMs": 2018,
+      "expected": "visibleLabel",
+      "suggestion": "displayName"
+    },
+    {
+      "name": "nearby diagnostic property hint",
+      "round": 1,
+      "variant": "candidate",
+      "passed": true,
+      "elapsedMs": 1706,
+      "providerMs": 1702,
+      "expected": "displayLabelX",
+      "suggestion": "displayLabelX"
+    },
+    {
+      "name": "nearby diagnostic property hint",
+      "round": 1,
+      "variant": "baseline",
+      "passed": false,
+      "elapsedMs": 2104,
+      "providerMs": 2102,
+      "expected": "displayLabelX",
+      "suggestion": "label"
+    }
+  ],
+  "summaries": [
+    {
+      "variant": "baseline",
+      "passed": 0,
+      "total": 6,
+      "medianSuccessfulMs": null
+    },
+    {
+      "variant": "candidate",
+      "passed": 6,
+      "total": 6,
+      "medianSuccessfulMs": 1651
+    }
+  ],
+  "model": "gemini-4-hydrogen-low",
+  "binaryHashes": {
+    "baseline": "9593f55065407e23d723e62c237e5f313e596cc47334650b5fc4c28a1794ed70",
+    "candidate": "646890664753d289b8720b7c3171a60eff6d09b0db755891d70cb58c28b1d766"
+  }
+}

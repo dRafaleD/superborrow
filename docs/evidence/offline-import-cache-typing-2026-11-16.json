@@ -1,0 +1,56 @@
+{
+  "scope": "offline-import-cache-typing",
+  "baselineVersion": "0.3.7",
+  "candidateVersion": "0.3.8",
+  "edits": 10,
+  "rounds": 3,
+  "editorLaunched": false,
+  "inferenceCalls": 0,
+  "sourceBytes": 15668,
+  "baselineVSIXSha256": "fe23b6bcd2e615d19c2e96781ecb3a6f4c6a6640a69e05ad642683386afec255",
+  "cases": [
+    {
+      "strategy": "baseline",
+      "round": 0,
+      "elapsedMs": 67.52,
+      "dependencyOpenCalls": 10,
+      "allReferencesCorrect": true
+    },
+    {
+      "strategy": "candidate",
+      "round": 0,
+      "elapsedMs": 40.72,
+      "dependencyOpenCalls": 1,
+      "allReferencesCorrect": true
+    },
+    {
+      "strategy": "candidate",
+      "round": 1,
+      "elapsedMs": 36.83,
+      "dependencyOpenCalls": 1,
+      "allReferencesCorrect": true
+    },
+    {
+      "strategy": "baseline",
+      "round": 1,
+      "elapsedMs": 51.42,
+      "dependencyOpenCalls": 10,
+      "allReferencesCorrect": true
+    },
+    {
+      "strategy": "baseline",
+      "round": 2,
+      "elapsedMs": 62.69,
+      "dependencyOpenCalls": 10,
+      "allReferencesCorrect": true
+    },
+    {
+      "strategy": "candidate",
+      "round": 2,
+      "elapsedMs": 45.6,
+      "dependencyOpenCalls": 1,
+      "allReferencesCorrect": true
+    }
+  ],
+  "passed": true
+}

@@ -2,11 +2,12 @@ mod config;
 mod context;
 mod protocol;
 mod provider;
+mod symbols;
 mod transport;
 
 use config::Config;
 use context::ContextEngine;
-use protocol::{Completion, Document};
+use protocol::{Completion, Document, DocumentPatch};
 use provider::{Answer, Event, Failure, HybridRouter, IdeBridgeProvider, LocalProvider};
 use serde_json::{Value, json};
 use std::{
@@ -194,7 +195,7 @@ impl Server {
                 } else {
                     self.initialized = true;
                     result = Ok(
-                        json!({"protocolVersion":1,"phase":4,"capabilities":{"fim":true,"nextEdit":true,"cancellation":true,"streamingLocal":true},"version":env!("CARGO_PKG_VERSION")}),
+                        json!({"protocolVersion":1,"phase":4,"capabilities":{"fim":true,"nextEdit":true,"cancellation":true,"streamingLocal":true,"preparedIdeCompletion":true,"relatedDocuments":true,"documentPatches":true},"version":env!("CARGO_PKG_VERSION")}),
                     );
                 }
             }
@@ -234,6 +235,16 @@ impl Server {
                 }
                 Err(_) => result = Err((-32602, "Invalid document")),
             },
+            "patchDocument" => match serde_json::from_value::<DocumentPatch>(params) {
+                Ok(patch) => {
+                    let uri = patch.uri.clone();
+                    result = self.context.patch(patch).map(|_| Value::Null);
+                    if result.is_ok() {
+                        self.cancel_document(&uri).await?;
+                    }
+                }
+                Err(_) => result = Err((-32602, "Invalid document patch")),
+            },
             "closeDocument" => {
                 if let Some(uri) = params["uri"].as_str() {
                     self.context.close(uri);
@@ -253,6 +264,17 @@ impl Server {
                     self.cancel(key, -32800, "Request cancelled").await?;
                 }
             }
+            "prepareIdeCompletion" => match serde_json::from_value::<Completion>(params) {
+                Err(_) => result = Err((-32602, "Invalid completion parameters")),
+                Ok(request) => match self.context.prompt(&request, &self.config) {
+                    Err(error) => result = Err(error),
+                    Ok(prompt) => {
+                        result = Ok(
+                            json!({"version":request.version,"prompt":prompt.chat,"qwenInfill":prompt.qwen_infill(),"qwenStopAt":prompt.qwen_stop_at(),"languageId":prompt.language_id,"maxTokens":self.config.max_tokens,"kind":if prompt.next_edit { "nextEdit" } else { "inline" }}),
+                        );
+                    }
+                },
+            },
             "requestCompletion" => {
                 let Some(original) = id.clone() else {
                     return Ok(false);

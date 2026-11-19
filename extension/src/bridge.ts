@@ -4,9 +4,9 @@ import {
   MessageConnection, ResponseError, CancellationTokenSource, Message,
 } from "vscode-jsonrpc/node";
 import {
-  Methods, CompletionParams, CompletionResult, UpdateDocumentParams,
+  Methods, CompletionParams, CompletionResult, UpdateDocumentParams, DocumentPatchParams,
   IdeModelParams, IdeModelResult, InitializeResult,
-  EngineConfig,
+  EngineConfig, PreparedIdeCompletion,
 } from "./protocol";
 
 export type IdeHandler = (params: IdeModelParams, signal: AbortSignal) => Promise<IdeModelResult>;
@@ -79,9 +79,16 @@ export class CoreBridge {
   updateDocument(params: UpdateDocumentParams): Promise<void> {
     return this.rpc.sendRequest(Methods.updateDocument, params);
   }
+  patchDocument(params: DocumentPatchParams): Promise<void> {
+    return this.rpc.sendRequest(Methods.patchDocument, params);
+  }
 
   closeDocument(uri: string): Promise<void> {
     return this.rpc.sendRequest(Methods.closeDocument, { uri });
+  }
+
+  prepareIdeCompletion(params: CompletionParams): Promise<PreparedIdeCompletion> {
+    return this.rpc.sendRequest(Methods.prepareIdeCompletion, params);
   }
 
   async requestCompletion(params: CompletionParams, signal?: AbortSignal): Promise<CompletionResult> {

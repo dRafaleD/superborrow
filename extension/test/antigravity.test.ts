@@ -48,3 +48,53 @@ test("native adapter does not invent a response for unavailable, cancelled, or i
   assert.equal(calls, 1);
   assert.throws(() => new AntigravityBridge({} as AntigravityRpc), /incompatible/);
 });
+
+test("catalog model switching performs no extra discovery and invalid selection cannot reuse an old model", async () => {
+  let discoveries = 0;
+  const seen: number[] = [];
+  const rpc: AntigravityRpc = {
+    async getAvailableModels() { discoveries++; return response; },
+    async getModelResponse(request) { seen.push(request.model); return { response: "x" }; },
+  };
+  const bridge = new AntigravityBridge(rpc);
+  const signal = new AbortController().signal;
+  await bridge.discover(signal);
+  await bridge.generate("a", signal);
+  bridge.select("claude-sonnet-low");
+  await bridge.generate("b", signal);
+  assert.deepEqual(seen, [1527, 1403]);
+  assert.equal(discoveries, 1);
+  assert.throws(() => bridge.select("disabled"), /unavailable/);
+  await assert.rejects(bridge.generate("c", signal), /not been initialized/);
+  assert.equal(seen.length, 2);
+});
+
+test("automatic completion excludes specialized models and prefers low-reasoning fallback variants", () => {
+  const models = modelCatalog({ response: { models: {
+    image: { displayName: 'Gemini Flash Image', model: 1 },
+    orchestrator: { displayName: 'Orchestrator', model: 2 },
+    'flash-high': { displayName: 'Gemini Flash (High)', model: 3 },
+    'flash-medium': { displayName: 'Gemini Flash (Medium)', model: 4 },
+    'flash-low': { displayName: 'Gemini Flash (Low)', model: 5 },
+    'flash-lite': { displayName: 'Gemini Flash Lite', model: 6 },
+    'sonnet-low': { displayName: 'Claude Sonnet (Low)', model: 7 },
+  } } });
+  assert.equal(automaticModel(models)?.slug, 'sonnet-low');
+  assert.equal(automaticModel(models.filter(model => model.slug !== 'sonnet-low'))?.slug, 'flash-low');
+  assert.equal(automaticModel(models.filter(model => /image|orchestrator/.test(model.slug))), undefined);
+});
+
+test("a catalog containing only specialized models never sends an automatic completion prompt", async () => {
+  let requests = 0;
+  const bridge = new AntigravityBridge({
+    async getAvailableModels() { return { response: { models: { image: { displayName: 'Flash Image', model: 1 } } } }; },
+    async getModelResponse() { requests++; return { response: 'not code' }; },
+  });
+  const signal = new AbortController().signal;
+  await assert.rejects(bridge.discover(signal), /enabled text model/);
+  await assert.rejects(bridge.generate('complete', signal), /not been initialized/);
+  assert.equal(requests, 0);
+  // Explicit pinning remains a user choice; auto never silently changes it.
+  bridge.select('image');
+  assert.equal(bridge.slug, 'image');
+});

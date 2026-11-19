@@ -226,7 +226,7 @@ impl CompletionProvider for IdeBridgeProvider {
         cancel: &CancellationToken,
     ) -> Answer {
         let (reply, response) = oneshot::channel();
-        let params = json!({"prompt":prompt.chat,"languageId":prompt.language_id,"maxTokens":config.max_tokens,"kind":if prompt.next_edit {"nextEdit"} else {"inline"}});
+        let params = json!({"prompt":prompt.chat,"qwenInfill":prompt.qwen_infill(),"qwenStopAt":prompt.qwen_stop_at(),"languageId":prompt.language_id,"maxTokens":config.max_tokens,"kind":if prompt.next_edit {"nextEdit"} else {"inline"}});
         tokio::select! {
             biased;
             _ = cancel.cancelled() => return Err(Failure::cancelled()),
@@ -300,14 +300,21 @@ impl HybridRouter {
 }
 
 pub fn clean(text: &str) -> String {
+    if text.trim() == "<NO_COMPLETION>" {
+        return String::new();
+    }
     let mut text = text;
     if text.trim_start().starts_with("```") {
         let trimmed = text.trim();
         if let Some((_, rest)) = trimmed.split_once('\n') {
-            text = rest
-                .strip_suffix("```")
-                .unwrap_or(rest)
-                .trim_end_matches(['\r', '\n']);
+            let mut end = 0;
+            for line in rest.split_inclusive('\n') {
+                if line.trim() == "```" {
+                    break;
+                }
+                end += line.len();
+            }
+            text = rest[..end].trim_end_matches(['\r', '\n']);
         }
     }
     let end = [
@@ -350,5 +357,10 @@ mod tests {
         }
         assert_eq!(clean("```rust\n  foo();\n```"), "  foo();");
         assert_eq!(clean("  foo()<|fim_suffix|>rest"), "  foo()");
+        assert_eq!(clean(" \n<NO_COMPLETION>\n"), "");
+        assert_eq!(
+            clean("const tag = '<NO_COMPLETION>';"),
+            "const tag = '<NO_COMPLETION>';"
+        );
     }
 }

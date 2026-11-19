@@ -18,21 +18,21 @@ export interface AntigravityRpc {
 
 export function modelCatalog(response: Awaited<ReturnType<AntigravityRpc["getAvailableModels"]>>): AntigravityModel[] {
   return Object.entries(response.response?.models ?? {}).flatMap(([slug, value]) => {
-    if (!value.displayName || !Number.isSafeInteger(value.model) || value.model! <= 0 || value.isInternal) return [];
+    if (!value || typeof value.displayName !== "string" || !value.displayName.trim() || !Number.isSafeInteger(value.model) || value.model! <= 0 || value.isInternal) return [];
     return [{ slug, label: value.displayName, model: value.model!, disabled: value.disabled === true }];
   }).sort((a, b) => a.label.localeCompare(b.label) || a.slug.localeCompare(b.slug));
 }
 
 export function automaticModel(models: readonly AntigravityModel[]): AntigravityModel | undefined {
   const score = (model: AntigravityModel) => {
-    if (/orchestrator|image/i.test(model.label)) return 100;
     if (/hydrogen.*low/i.test(model.label)) return 0;
-    if (/flash.*lite/i.test(model.label)) return /flash-lite/.test(model.slug) ? 1 : 2;
-    if (/flash.*low|flash/i.test(model.label)) return 3;
-    if (/sonnet.*low/i.test(model.label)) return 4;
-    return 5;
+    if (/sonnet.*low/i.test(model.label)) return 1;
+    if (/flash.*low/i.test(model.label)) return 2;
+    if (/flash.*lite/i.test(model.label)) return /flash-lite/.test(model.slug) ? 3 : 4;
+    if (/flash/i.test(model.label) && !/medium|high|thinking/i.test(model.label)) return 5;
+    return 6;
   };
-  return models.filter(model => !model.disabled).slice().sort((a, b) => score(a) - score(b) || b.slug.localeCompare(a.slug))[0];
+  return models.filter(model => !model.disabled && !/orchestrator|image/i.test(`${model.label} ${model.slug}`)).slice().sort((a, b) => score(a) - score(b) || b.slug.localeCompare(a.slug))[0];
 }
 
 export class AntigravityBridge {
@@ -49,6 +49,12 @@ export class AntigravityBridge {
 
   async discover(signal: AbortSignal, selectedSlug?: string): Promise<void> {
     this.catalog = modelCatalog(await this.rpc.getAvailableModels({}, { signal }));
+    this.select(selectedSlug);
+  }
+
+  /** Select from the already authenticated catalog without another RPC. */
+  select(selectedSlug?: string): void {
+    this.selected = undefined;
     const model = selectedSlug ? this.catalog.find(model => model.slug === selectedSlug && !model.disabled) : automaticModel(this.catalog);
     if (!model) throw new Error(selectedSlug ? `Antigravity model unavailable: ${selectedSlug}` : "Antigravity did not expose an enabled text model. Check its signed-in account.");
     this.selected = model;

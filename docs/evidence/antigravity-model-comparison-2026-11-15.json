@@ -1,0 +1,189 @@
+{
+  "completed": true,
+  "passed": false,
+  "scope": "model-comparison",
+  "cases": [
+    {
+      "name": "expression",
+      "round": 0,
+      "model": "gemini-4-hydrogen-low",
+      "passed": false,
+      "elapsedMs": 6016,
+      "error": "Completion timed out"
+    },
+    {
+      "name": "middle-gap",
+      "round": 0,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1988,
+      "providerMs": 1985,
+      "suggestion": "b"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 0,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 3293,
+      "providerMs": 3290,
+      "suggestion": "def buyuk_olan(a, b):\n    return a if a > b else b"
+    },
+    {
+      "name": "expression",
+      "round": 0,
+      "model": "gemini-3.5-flash-lite",
+      "passed": false,
+      "elapsedMs": 6018,
+      "error": "Completion timed out"
+    },
+    {
+      "name": "middle-gap",
+      "round": 0,
+      "model": "gemini-3.5-flash-lite",
+      "passed": false,
+      "elapsedMs": 1574,
+      "providerMs": 1572,
+      "suggestion": "b</int>"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 0,
+      "model": "gemini-3.5-flash-lite",
+      "passed": true,
+      "elapsedMs": 2149,
+      "providerMs": 2144,
+      "suggestion": "def buyuk_olani_bul(sayi1, sayi2):\n    if sayi1 > sayi2:\n        return sayi1\n    return sayi2"
+    },
+    {
+      "name": "expression",
+      "round": 0,
+      "model": "gemini-3.8-flash-medium",
+      "passed": false,
+      "elapsedMs": 6009,
+      "error": "Completion timed out"
+    },
+    {
+      "name": "middle-gap",
+      "round": 0,
+      "model": "gemini-3.8-flash-medium",
+      "passed": false,
+      "elapsedMs": 6017,
+      "error": "Completion timed out"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 0,
+      "model": "gemini-3.8-flash-medium",
+      "passed": false,
+      "elapsedMs": 6021,
+      "error": "Completion timed out"
+    },
+    {
+      "name": "expression",
+      "round": 1,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 5385,
+      "providerMs": 5380,
+      "suggestion": "a + b"
+    },
+    {
+      "name": "middle-gap",
+      "round": 1,
+      "model": "gemini-4-hydrogen-low",
+      "passed": false,
+      "elapsedMs": 6018,
+      "error": "Completion timed out"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 1,
+      "model": "gemini-4-hydrogen-low",
+      "passed": true,
+      "elapsedMs": 1752,
+      "providerMs": 1747,
+      "suggestion": "def max_of_two(a, b):\n    return a if a > b else b\n"
+    },
+    {
+      "name": "expression",
+      "round": 1,
+      "model": "gemini-3.5-flash-lite",
+      "passed": true,
+      "elapsedMs": 2677,
+      "providerMs": 2671,
+      "suggestion": "a + b"
+    },
+    {
+      "name": "middle-gap",
+      "round": 1,
+      "model": "gemini-3.5-flash-lite",
+      "passed": false,
+      "elapsedMs": 6024,
+      "error": "Completion timed out"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 1,
+      "model": "gemini-3.5-flash-lite",
+      "passed": false,
+      "elapsedMs": 6018,
+      "error": "Completion timed out"
+    },
+    {
+      "name": "expression",
+      "round": 1,
+      "model": "gemini-3.8-flash-medium",
+      "passed": true,
+      "elapsedMs": 5298,
+      "providerMs": 5294,
+      "suggestion": "a + b"
+    },
+    {
+      "name": "middle-gap",
+      "round": 1,
+      "model": "gemini-3.8-flash-medium",
+      "passed": true,
+      "elapsedMs": 4410,
+      "providerMs": 4406,
+      "suggestion": "b"
+    },
+    {
+      "name": "comment-implementation",
+      "round": 1,
+      "model": "gemini-3.8-flash-medium",
+      "passed": true,
+      "elapsedMs": 5985,
+      "providerMs": 5979,
+      "suggestion": "def buyuk_olani_bul(a, b):\n    return a if a > b else b"
+    }
+  ],
+  "summaries": [
+    {
+      "model": "gemini-4-hydrogen-low",
+      "label": "Gemini 4 Hydrogen (Low)",
+      "passed": 4,
+      "total": 6,
+      "medianSuccessfulMs": 2640.5,
+      "maxSuccessfulMs": 5385
+    },
+    {
+      "model": "gemini-3.5-flash-lite",
+      "label": "Gemini 3.5 Flash Lite",
+      "passed": 2,
+      "total": 6,
+      "medianSuccessfulMs": 2413.0,
+      "maxSuccessfulMs": 2677
+    },
+    {
+      "model": "gemini-3.8-flash-medium",
+      "label": "Gemini 3.8 Flash (Medium)",
+      "passed": 3,
+      "total": 6,
+      "medianSuccessfulMs": 5298.0,
+      "maxSuccessfulMs": 5985
+    }
+  ],
+  "error": "",
+  "qualityValidation": "Python fixtures rescored with an allowlisted AST interpreter over six numeric input pairs; original model responses and times unchanged."
+}
