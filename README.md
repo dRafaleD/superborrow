@@ -1,67 +1,56 @@
 # Superborrow
 
-Duskline, Antigravity ve uyumlu VS Code tabanlı editörler için Tab ile kod
-tamamlama eklentisi. Sürüm **0.3.14**, erken geliştirme önizlemesi.
+[English](README.md) · [Türkçe](README.tr.md)
 
-> **Erken aşama.** Şu an öncelik Duskline'da Rust yazarken güvenilir Tab
-> tamamlama. Önerileri kabul etmeden önce inceleyin ve derleyici ile testleri
-> çalıştırın. Model yanlış kod önerebilir, bir bloğu tekrarlayabilir veya
-> başka bir dilde yanıt verebilir. Filtreler bu hataların bir bölümünü yakalar.
+Tab completion for Duskline, Antigravity, and compatible VS Code–based editors.
+Version **0.3.14** is an early development preview.
 
-| Kullanım | Destek durumu |
+> **Early preview.** The current priority is reliable Rust Tab completion in
+> Duskline. Review suggestions before accepting them and run your project's
+> compiler and tests. A model can suggest incorrect code, repeat a block, or
+> answer in the wrong language. Filters catch some of these cases.
+
+| Language | Support |
 | --- | --- |
-| Rust | Öncelikli dil. Tree-sitter bağlamı, trait ve metot imzaları, Rust odaklı istemler ve tekrar filtreleri. |
-| TypeScript, JavaScript, TSX, JSX ve Python | Sözdizimi bağlamıyla tamamlama. Duskline'da bazı TS/JS önerileri dil servisinden gelir. |
-| Diğer diller | Dil kimliği ve imleç çevresindeki metin üzerinden genel tamamlama. Doğruluk ve kapsam seçilen modele bağlıdır. |
+| Rust | Primary focus. Tree-sitter context, trait and method signatures, Rust-specific prompts, and repetition filters. |
+| TypeScript, JavaScript, TSX, JSX, and Python | Syntax-aware completion. In Duskline, some TS/JS suggestions come from the language service. |
+| Other languages | General completion uses the language ID and text around the cursor. Coverage and quality depend on the selected model. |
 
-### Sınırlar ve veri kullanımı
+### Limitations and data use
 
-- Testler bağlamı, öneri filtrelerini ve köprü protokolünü kapsar. Günlük
-  kullanımda her dil, model ve editör sürümü için eşdeğer doğrulama yoktur.
-  Cursor ile karşılaştırmalı hız veya kalite üstünlüğü doğrulanmadı.
-- Duskline seçili modeli yerel Ollama sürecinde çalıştırır. Model boyutu ve
-  donanım gecikme ile bellek kullanımını etkiler. Antigravity kendi model
-  sağlayıcısını ve hesabın kotasını kullanır. Bu entegrasyon host API'sine
-  bağlıdır ve editör güncellemelerinde değişebilir.
-- Bulut sağlayıcısı seçildiğinde kaynak kod parçaları ve ilgili bağlam
-  sağlayıcıya gönderilebilir. `superborrow.exclude` dosya adlarına göre
-  filtreler. Dosya içindeki sırları otomatik tespit etmez. `importContext`
-  kapatılırsa açık olmayan TS/JS import dosyaları okunmaz.
+- Tests cover context, suggestion filters, and the bridge protocol. Real-editor
+  behavior varies by language, model, and editor version. Comparative speed
+  and quality against Cursor have not been established.
+- Duskline runs the selected model in a local Ollama process. Model size and
+  hardware affect latency and memory use. Antigravity uses the host's model
+  provider and account quota. Its integration depends on the host API and may
+  change with editor updates.
+- A selected cloud provider can receive source snippets and related context.
+  `superborrow.exclude` filters by filename and cannot detect secrets inside
+  eligible files. Set `superborrow.importContext` to `false` to disable reading
+  unopened TS/JS imports for additional context.
 
-## Neler çalışıyor?
+## Features
 
-- İmleç öncesi/sonrası bağlamla FIM; Qwen ve Codestral token düzenleri.
-- Rust, TypeScript/TSX, JavaScript/JSX ve Python için artımlı tree-sitter analizi;
-  diğer dillerde metin bağlamı. Açık belgelerden sembol imzaları ve son 10 düzenleme.
-- llama.cpp `/infill`, Ollama `/api/generate`, yerel OpenAI uyumlu `/v1/completions`.
-  SSE/NDJSON akışı, paylaşılan HTTP istemcisi, iptal ve zaman aşımı.
-- Hayalet metin, belge olayları, debounce, kısa ömürlü öneri önbelleği ve mod seçici.
-- Kullanılan adlara göre sıralanan export/tip/sınıf bağlamı; uzak importlar ve
-  imleç yakınındaki hata/uyarılar. Aynı isteklerin ortak model çağrısı ve yazarken
-  önerinin kalanını yeni çağrı olmadan yeniden kullanma.
-- Güvenilen çalışma alanında açık olmayan doğrudan TS/JS importlarından sınırlı
-  tip/API bağlamı: en fazla dört dosya, dosya başına 64 KB. Kapatmak için
-  `superborrow.importContext: false`; dosya dışlamaları geçerlidir.
-- Antigravity hesabındaki modellerin otomatik keşfi ve açılışta bağlantı;
-  kalıcı model seçimi, `vscode.lm` ve özel eklenti adaptörü desteği.
-- Türkçe/İngilizce yorumdan kod üretme: örneğin `// toplama fonksiyonu oluştur`
-  yazıp alt satıra geçtiğinde hayalet metin önerilir; Tab ile kabul edilir.
-- **Suggest Next Edit**: seçili kod veya mevcut satır için öneri, fark önizlemesi,
-  kullanıcı uygulaması ve arada değişen belge için sürüm kontrolü.
-- Rust'ta Tab imleçteki boşluğu doldurur. Satır veya blok değişiklikleri için
-  **Suggest Next Edit** kullanılabilir. Rust trait metot imzaları ilgili bağlama eklenir.
-- Sözdizimi ayrıştırıcısı olmayan dillerde de dil kimliği ve imleç çevresindeki
-  metin kullanılır. Öneri kalitesi seçilen modelin dil desteğine bağlıdır.
+- Fill-in-the-middle (FIM) using text before and after the cursor, with Qwen
+  and Codestral formats.
+- Ranked symbols, relevant imports, recent edits, and nearby diagnostics.
+  Identical requests can share an inference call, and typing the start of a
+  suggestion can reuse its remaining text.
+- Local HTTP adapters for llama.cpp, Ollama, and OpenAI-compatible completions.
+  IDE models are available through Antigravity, `vscode.lm`, or a compatible
+  adapter extension.
+- Code suggestions from comments describing a specific behavior. A vague
+  request such as `create function` may produce no suggestion.
+- **Superborrow: Suggest Next Edit** previews a proposed replacement for the
+  selection or current line. It checks the document version before applying.
+  Rust Tab normally inserts at the cursor. In Duskline, TS/JS language-service
+  features can also offer missing imports and rename follow-ups.
 
-**Suggest Next Edit** komutu seçili aralığı veya imlecin bulunduğu satırı işler.
-Duskline, dil servisinin belirlediği import ve yeniden adlandırma önerilerini de
-Tab ile sunabilir. Antigravity entegrasyonu, 1.11 eklentisinin dışa açtığı model
-istemcisini kullanır. Hybrid mod, hata durumunda yerel sağlayıcıya dönebilir.
+## Build and install
 
-## Kurulum ve geliştirme
-
-Rust edition 2024, Node.js 22+ ve npm gerekir. Windows'ta C/C++ derleme araçları
-(tree-sitter için MSVC Build Tools), Linux'ta C derleyicisi gerekir.
+Use a Rust toolchain that supports edition 2024, Node.js 22+, and npm.
+Tree-sitter requires MSVC Build Tools on Windows or a C compiler on Linux.
 
 ```powershell
 npm --prefix extension ci --ignore-scripts
@@ -70,41 +59,43 @@ npm --prefix extension test
 cargo test --locked --manifest-path core-rust/Cargo.toml
 cargo clippy --locked --manifest-path core-rust/Cargo.toml --all-targets -- -D warnings
 npm --prefix extension run package:windows
-& "$env:LOCALAPPDATA\Programs\Antigravity IDE\bin\antigravity-ide.cmd" --install-extension "$PWD\packages\superborrow-0.3.14-win32-x64.vsix" --force
 ```
 
-Paket Windows x64 Rust çekirdeğini içerir. Kurulumdan sonra **Developer: Reload
-Window** çalıştır. Güvenilen çalışma alanında motor otomatik başlar. Geliştirmede
-bu klasörü açıp F5 kullanılabilir. Farklı binary: `superborrow.corePath`.
+The last command creates a Windows x64 VSIX under `packages/` with the bundled
+Rust core. Install it from the editor's **Install from VSIX…** command and
+run **Developer: Reload Window**. The engine starts in trusted workspaces.
+For development, open the repository and press F5. Use `superborrow.corePath`
+to point to a different core binary.
 
-Antigravity'de **Antigravity Tab: Use Superborrow for Tab** komutu, Superborrow'u
-doğrudan Antigravity/IDE sağlayıcısını kullanacak şekilde ayarlar ve çakışan yerleşik Tab sağlayıcısını kapatır.
-Önceki yerleşik Tab ayarı saklanır; **Restore Antigravity Tab** onu geri yükleyip
-Superborrow'u duraklatır. Yalnızca `tabEnabled` tercihi değiştirilir; model hesabı,
-sohbet, izinler ve gizlilik tercihleri değiştirilmez. Bu geçiş kalıcı bir sağlayıcı
-seçimidir; Pause tüm Superborrow önerilerini durdurur, yerleşik Tab'ı açmaz.
+## Usage
 
-## Yerel model ayarı
+### Duskline
 
-### Duskline'da kullanım
+If the profile restricts extension versions, add the exact VSIX version to
+the allowlist. Run **Superborrow: Select IDE Model** and choose a model already
+installed in Ollama. Type in a source file and press **Tab** when a suggestion
+appears. Use **Superborrow: Pause / Resume Tab** to pause or resume suggestions.
 
-VSIX'i Duskline'a kurup **Developer: Reload Window** çalıştırın. Duskline
-profilinde eklenti sürümleri sınırlandırılıyorsa izinli sürüm olarak bu paketin
-sürümünü ekleyin. **Superborrow: Select IDE Model** menüsünden önceden
-indirilmiş modeli seçin. Öneri göründüğünde **Tab** ile kabul edin. Rust
-dosyasında daha geniş değişiklikler için **Superborrow: Suggest Next Edit**
-komutu fark önizlemesi açar.
+### Antigravity
 
-### Diğer editörlerde yerel sunucu
+Run **Antigravity Tab: Use Superborrow for Tab** to activate IDE-only routing
+and turn off the competing native Tab provider. **Antigravity Tab: Restore
+Antigravity Tab** restores the saved native preference and pauses Superborrow.
+The automatic model picker discovers available models from the signed-in
+account. **Superborrow: Select IDE Model** lets you pin a specific model.
 
-Önceden indirilmiş FIM uyumlu bir model ve çalışan sunucu gerekir. Eklenti model
-indirmez ve sunucuyu kendiliğinden kurmaz/başlatmaz. Ollama örneği:
+The integration uses the exported model client from Antigravity host extension
+1.11. On generic VS Code hosts, use the model picker for a compatible
+`vscode.lm` provider or configure an explicit adapter.
+
+### Local servers in other editors
+
+Install a compatible model and start the server first. For an Ollama setup
+that should use only the local server, use:
 
 ```json
 {
-  "superborrow.mode": "hybrid",
-  "superborrow.hybridPreference": "ide",
-  "superborrow.ideModel": "auto",
+  "superborrow.mode": "local",
   "superborrow.localApi": "ollama",
   "superborrow.endpoint": "http://127.0.0.1:11434/api/generate",
   "superborrow.model": "qwen2.5-coder:7b",
@@ -112,110 +103,44 @@ indirmez ve sunucuyu kendiliğinden kurmaz/başlatmaz. Ollama örneği:
 }
 ```
 
-llama.cpp için `localApi: "llamaInfill"`,
-`endpoint: "http://127.0.0.1:8080/infill"`; model tokenizer'ını sunucu seçer.
-OpenAI uyumlu yerel sunucu için `localApi: "openAi"`, tam `/v1/completions`
-adresi ve model adı gerekir. Bu adaptör sohbet `/chat/completions` protokolünü
-kullanmaz. Codestral ham token düzeni `fimFormat: "codestral"` ile seçilir.
+Replace the model name with one you have installed. For llama.cpp, use
+`llamaInfill` and the `/infill` endpoint. For an OpenAI-compatible server, use
+`openAi` and the complete `/v1/completions` endpoint URL. Local HTTP connections
+use loopback addresses. **IDE** mode uses the selected IDE provider, **Local**
+uses the configured local server, and **Hybrid** can route or fall back between
+them. Set `superborrow.hybridPreference` to `ide`, `local`, or `auto`.
 
-Varsayılan mod **Antigravity (ide)**: istekler seçilen IDE modeline gider; yerel sunucuya başvuru veya yerel geri dönüş yapılmaz. Durum çubuğuna tıklayarak **Hybrid → Local → Antigravity** geçişi yapılır.
-Local yalnızca yerel modele gider. Hybrid basit satırlarda yereli, blok başlangıcı,
-büyük bağlam ve Next Edit için seçilmiş IDE modelini tercih eder. Sağlayıcı hata
-verirse kullanılabilir diğer sağlayıcıyı dener. Yerel gecikme bütçesi aşıldığında
-IDE seçiliyse ona geçer. `hybridPreference: "ide"` her dilde IDE'yi birincil,
-yereli yedek yapar; `"local"` tersini yapar, `"auto"` bağlam sezgisini kullanır.
+## Context and controls
 
-Antigravity'de `ideModel: "auto"`, açık hesabın model listesinden hızlı bir metin
-modeli seçip açılışta bağlanır. **Select IDE Model** ile Gemini, Claude veya
-hesabının açtığı diğer modellerden birini seçebilirsin; seçim kalıcıdır. API
-çağrıları host eklentisinin kendi kimlik doğrulamasını kullanır. Genel VS Code
-`vscode.lm` sağlayıcılarında ilk izin ve model seçimi kullanıcı komutuyla yapılır.
+- The engine syncs up to 16 eligible open documents, with a 512 KiB per-file
+  limit and an 8 MiB aggregate limit. It does not scan the entire repository.
+- Trusted TS/JS workspaces can supply up to four directly imported local
+  files, with a 64 KiB limit per file. Built-in exclusions include `.env*`,
+  `*.pem`, `*.key`, `.git`, `node_modules`, `target`, and `dist`.
+- `superborrow.speculativeTyping` allows up to two compatible client-side IDE
+  predictions. It can consume additional provider work or quota. Disable it
+  to use a single version-bound request path.
+- Use **Superborrow: Show Diagnostics** for connection and error information
+  or **Superborrow: Check Bridge** to reconnect. Superborrow keeps prompt
+  context in memory and does not include source text in its normal logs.
 
-Dosya, kaydedilmemiş belge ve notebook hücrelerinde dil beyaz listesi yoktur.
-AST desteği olmayan Go, Java, C#, C++, SQL, HTML, CSS ve diğer diller metin bağlamı
-üzerinden aynı otomatik akışı kullanır. Sonuç kalitesi modele ve bağlama bağlıdır.
-Yorum satırları da niyet olarak değerlendirilir: JS/TS `//`, Python `#`, SQL `--`,
-CSS `/* */` ve HTML yorumları için ayrı bir komut gerekmez.
+## Validation
 
-Yorum fonksiyonun ne yapacağını belirtmeli: Python'da
-`# iki sayıyı toplayan bir fonksiyon oluştur` yazıp alt satıra geç.
-Sadece `create function` davranış belirtmez; modelin rastgele boş fonksiyonlar
-üretmek yerine öneri vermemesi istenir. Açık bir davranış isteğinde `pass`, TODO
-ve boş gövde yerine uygulama istenir; açıkça istenen iskeletler desteklenir.
+Windows and Ubuntu CI run formatting checks, Clippy, Rust builds and tests,
+and Node tests against the actual core process. Those checks use controlled
+fixtures and require no external model. With an installed Ollama model,
+`npm --prefix extension run smoke:local` runs an optional local smoke test.
+`SUPERBORROW_MODEL` selects a different installed model.
 
-## Komutlar
+An optional signed-in Antigravity test runs on Windows with
+`npm --prefix extension run test:host`. It uses synthetic files, an isolated
+test profile, and account quota. The host test records acceptance separately
+from provider responses.
 
-| Komut | İşlev |
-| --- | --- |
-| Superborrow: Check Bridge | Bağlantıyı yeniden kur |
-| Antigravity Tab: Switch Mode | Modlar arasında geç |
-| Antigravity Tab: Pause / Resume | Tamamlamayı ve belge toplamayı durdur/başlat |
-| Antigravity Tab: Select IDE Model | Antigravity / vscode.lm modelini kalıcı seç |
-| Antigravity Tab: Use Superborrow for Tab | Doğrudan IDE model akışını aç, yerleşik Tab çakışmasını kaldır |
-| Antigravity Tab: Restore Antigravity Tab | Önceki yerleşik Tab ayarını geri yükle, Superborrow'u duraklat |
-| Antigravity Tab: Inspect Available Models | Modelleri, eklenti export adlarını ve aday komutları listele |
-| Antigravity Tab: Suggest Next Edit | Seçili kod / mevcut satır için fark önizlemesi |
-| Antigravity Tab: Show Diagnostics | Bağlantı ve hata kayıtlarını aç |
+[Validation notes](docs/validation.md) · [Architecture](docs/architecture.md) ·
+[Bridge protocol](docs/protocol.md) · [IDE adapter contract](docs/ide-adapter.md)
 
-Hayalet metni editörün standart kabul tuşuyla (genellikle Tab) kabul edebilirsin.
-Diğer tamamlama eklentileriyle aynı anda çalışması önerilerin görünmesini
-etkileyebilir. IDE modunda model seçilmemişse açıklayıcı hata tanılarda görünür.
+## License
 
-## Bağlam ve sınırlar
-
-En çok 16 açık uygun belge senkronize edilir; aktif belge önceliklidir. Dosya başı
-512 KiB, çekirdekte toplam 8 MiB sınırı vardır. Geçmiş ve prompt sınırlandırılır;
-tam repo taraması yapılmaz. `.env*`, `*.pem`, `*.key`, `.git`, `node_modules`,
-`target`, `dist` varsayılan olarak hariçtir; `superborrow.exclude` düzenlenebilir.
-Bu dosya adı filtresi içerikteki tüm gizli bilgileri saptayan bir tarayıcı değildir.
-
-Bağlam ve öneriler yalnızca bellekte tutulur. Prompt/kaynak metni loglanmaz.
-Yerel HTTP istemcisi yalnızca loopback adres kabul eder; yönlendirme/proxy yoktur.
-IDE/Hybrid modunda seçilmiş IDE sağlayıcısına kod bağlamı gönderilebilir.
-Özel proje notları `superborrow.projectContext` ile açıkça girilir.
-
-IDE modunda `superborrow.speculativeTyping` açıkken, yazılan metinle birebir
-eşleşen eski model yanıtının kalan kısmı kullanılabilir. Eski tahmin ile güncel
-istek birlikte yarışır; istemcide en çok iki model işi tutulur. Fazladan model
-işi/kota tüketebilir; ayarı `false` yaparak sürüme bağlı tek istek akışına
-dönebilirsin. Öneriler kendiliğinden uygulanmaz.
-
-`maxContextBytes`, `maxTokens`, `debounceMs`, `requestTimeoutMs` ayarlanabilir.
-İptal, değişen belge, kapanan dosya ve yeni istek eski yanıtların gösterilmesini
-engeller. Next Edit sınırı `min(16 KiB, maxContextBytes / 4)` seçili UTF-8 metnidir.
-IDE API'si standart bir çıktı token sınırı sunmadığından byte sınırı uygulanır.
-
-## Doğrulama
-
-CI, Windows ve Ubuntu üzerinde Rust format/Clippy/testleri, derlemeyi ve gerçek
-Rust sürecine bağlanan Node testlerini çalıştırır. Yerel sağlayıcı testleri
-kontrollü HTTP sunucularını kullanır; dış modele ihtiyaç duymaz.
-
-Gerçek Ollama testi (model önceden kurulu olmalı):
-
-```powershell
-npm --prefix extension run smoke:local
-```
-
-Bu test dış model indirmez; `SUPERBORROW_MODEL` ile başka kurulu model seçilebilir.
-
-İsteğe bağlı gerçek Antigravity testleri (Windows, kurulu IDE ve açık model hesabı):
-
-```powershell
-npm --prefix extension run test:host
-```
-
-Bu komut hesaptaki model kotasını kullanır; CI'de çalışmaz. Ayrı bir test profili
-açar, gerçek model çağrılarını ve otomatik önerinin kabulünü sınar. Test sırasında
-yerleşik Tab tercihini geçici değiştirip `finally` bloğunda geri yükler. Yalnızca
-sentetik örnekler kullanılır; sonuçlar Git dışındaki `packages/host-live-*.json`
-dosyasına yazılır. API seçim/üretim testleri ile gerçek editör kabul testi ayrıdır;
-kabul testi yalnız Superborrow'un kabul bildirimi geldiyse geçer.
-
-[Ölçüm notları](docs/validation.md), [mimari](docs/architecture.md),
-[protokol](docs/protocol.md), [IDE adaptör sözleşmesi](docs/ide-adapter.md).
-
-## Lisans
-
-Bu depoda henüz bir lisans dosyası yoktur. Kaynak kodun görüntülenebilir olması
-yeniden kullanım veya dağıtım izni vermez.
+Superborrow is distributed under the [MIT License](LICENSE). Third-party
+dependencies, model weights, and host editors have their own licenses.

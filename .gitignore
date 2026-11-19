@@ -2,6 +2,7 @@
 /extension/node_modules/
 /extension/dist/
 /extension/bin/
+/extension/LICENSE
 /packages/
 *.vsix
 __pycache__/

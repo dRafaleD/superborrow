@@ -1,5 +1,9 @@
 # Superborrow 0.3.14
 
+[English](https://github.com/dRafaleD/superborrow/blob/main/README.md) ·
+[Türkçe](https://github.com/dRafaleD/superborrow/blob/main/README.tr.md) ·
+[MIT License](https://github.com/dRafaleD/superborrow/blob/main/LICENSE)
+
 Hybrid local / IDE code completion with a bundled Rust context engine.
 
 **Early development preview.** Rust is the current priority. JavaScript,

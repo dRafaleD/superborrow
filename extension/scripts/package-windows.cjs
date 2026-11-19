@@ -13,4 +13,5 @@ execFileSync(process.execPath, [path.join(extension, 'node_modules', 'typescript
 mkdirSync(path.join(extension, 'bin'), { recursive: true });
 mkdirSync(path.join(root, 'packages'), { recursive: true });
 copyFileSync(path.join(root, 'core-rust', 'target', 'release', 'superborrow-core.exe'), path.join(extension, 'bin', 'superborrow-core.exe'));
-execFileSync(process.execPath, [path.join(extension, 'node_modules', '@vscode', 'vsce', 'vsce'), 'package', '--target', 'win32-x64', '--skip-license', '--out', path.join(root, 'packages', `superborrow-${version}-win32-x64.vsix`)], { cwd: extension, stdio: 'inherit' });
+copyFileSync(path.join(root, 'LICENSE'), path.join(extension, 'LICENSE'));
+execFileSync(process.execPath, [path.join(extension, 'node_modules', '@vscode', 'vsce', 'vsce'), 'package', '--target', 'win32-x64', '--out', path.join(root, 'packages', `superborrow-${version}-win32-x64.vsix`)], { cwd: extension, stdio: 'inherit' });
