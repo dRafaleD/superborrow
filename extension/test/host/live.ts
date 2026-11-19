@@ -31,7 +31,7 @@ export async function run(): Promise<void> {
     report.startup = api.getStatus(); save();
     assert.equal(api.getStatus().connected, true);
     assert.equal(api.getStatus().ideAvailable, true);
-    assert.equal(api.getStatus().coreVersion, "0.3.9");
+    assert.equal(api.getStatus().coreVersion, "0.3.14");
     await vscode.commands.executeCommand("superborrow.enableCompositeTab");
     compositeEnabled = true;
     assert.equal(api.getStatus().nativeTabManaged, true);

@@ -49,8 +49,14 @@ impl Prompt {
         // The raw FIM model expects source around its sentinel tokens. Chat
         // history such as unified diffs belongs in the instruction prompt.
         Some(format!(
-            "<|fim_prefix|>{}<|fim_suffix|>{}<|fim_middle|>",
-            self.prefix, self.suffix
+            "<|fim_prefix|>{}{}<|fim_suffix|>{}<|fim_middle|>",
+            if self.language_id == "rust" {
+                "// Language: Rust\n"
+            } else {
+                ""
+            },
+            self.prefix,
+            self.suffix
         ))
     }
 
@@ -62,7 +68,8 @@ impl Prompt {
         let current = lines.next().unwrap_or_default();
         let line = current.trim_start();
         let trimmed = line.trim_end();
-        if !line.starts_with(['#', '/'])
+        if self.language_id != "rust"
+            && !line.starts_with(['#', '/'])
             && !trimmed.ends_with(['(', '[', '{', ':', ','])
             && (line.starts_with("return ") || line.starts_with("yield ") || trimmed.ends_with('.'))
         {
@@ -115,6 +122,7 @@ fn bounded_member_gap(entry: &Entry, cursor: usize) -> bool {
     }
     name.parent().is_some_and(|node| match node.kind() {
         "member_expression" => node.child_by_field_name("property") == Some(name),
+        "field_expression" => node.child_by_field_name("field") == Some(name),
         "attribute" => node.child_by_field_name("attribute") == Some(name),
         _ => false,
     })
@@ -450,7 +458,14 @@ impl ContextEngine {
         let task = if next_edit {
             "Replace the selected code following the instruction. Return replacement code only; omit surrounding code, explanations and markdown."
         } else {
-            "Fill only the cursor gap in the ACTIVE file (<PRE> and <SUF>). Other sections are references, not code to continue. Follow the latest nearby request comment in its language; obey the stated programming Language even if the comment marker belongs to another language. Implement requested behavior fully, including a declaration if needed. No pass, TODO, ellipsis, NotImplementedError or empty body unless a stub/skeleton is explicitly requested. If a new function's behavior is unspecified (e.g. 'create function'), return exactly <NO_COMPLETION>. Match existing names and indentation. For expression gaps finish the expression; for behavior comments complete the requested implementation. Prefer the smallest useful code unit. Do not add examples/tests unless requested. Return missing code only, no markdown or explanation. Prefix and suffix remain in the file: do not repeat them."
+            "Fill only the cursor gap in the ACTIVE file (<PRE> and <SUF>). Other sections are references, not code to continue. Follow the latest nearby request comment in its language; obey the stated programming Language even if the comment marker belongs to another language. Implement requested behavior fully, including a declaration if needed. No pass, TODO, ellipsis, NotImplementedError or empty body unless a stub/skeleton is explicitly requested. If a new function's behavior is unspecified (e.g. 'create function'), return exactly <NO_COMPLETION>. Match existing names and indentation. For expression gaps finish the expression; for behavior comments complete the requested implementation. Prefer the smallest useful code unit. Do not add examples/tests unless requested. Return missing code only. Omit markdown, explanations, and comments that restate the code. Prefix and suffix remain in the file: do not repeat them."
+        };
+        let task = if entry.doc.language_id == "rust" && !next_edit {
+            format!(
+                "{task} For Rust, use the visible types and signatures. Preserve borrowing, mutability and Result/Option handling. Do not invent APIs, replace error propagation with unwrap, or repeat a delimiter that already follows the gap."
+            )
+        } else {
+            task.to_owned()
         };
         // The byte budget includes chat instructions and framing, not just FIM.
         let framing = format!(
@@ -495,6 +510,9 @@ impl ContextEngine {
         }
         let mut candidates = Vec::new();
         for (uri, other) in self.documents.iter().chain(related.iter()) {
+            if entry.doc.language_id == "rust" && other.doc.language_id != "rust" {
+                continue;
+            }
             let filename = uri.rsplit('/').next().unwrap_or(uri);
             let stem = filename.rsplit_once('.').map_or(filename, |(stem, _)| stem);
             let imported = stem.len() >= 3 && entry.index.headers.contains(stem);
@@ -596,6 +614,14 @@ impl ContextEngine {
         dynamic.push_str("Recent edits:\n");
         // Oldest -> newest to keep stable leading history across requests.
         for (uri, diff) in &self.history {
+            if entry.doc.language_id == "rust"
+                && !self
+                    .documents
+                    .get(uri)
+                    .is_some_and(|source| source.doc.language_id == "rust")
+            {
+                continue;
+            }
             dynamic.push_str(&format!("{}\n{}\n", head(uri, 160), diff));
         }
         dynamic = format!(
@@ -1006,6 +1032,28 @@ mod tests {
             ("typescript", "const text = `some + ", ";\n", None),
             ("python", "    s = '''some + ", "\n", None),
             ("python", "    result += ", " # keep the comment\n", None),
+            (
+                "rust",
+                "fn read(config: Config) { let x = config.time",
+                "; }",
+                Some("line"),
+            ),
+            (
+                "rust",
+                "fn read(config: Config) { config.retr",
+                "(); }",
+                Some("line"),
+            ),
+            ("rust", "fn read() {\n    let x = config.time", "\n}", None),
+            ("rust", "fn read() {\n    // config.time", ";\n}", None),
+            ("rust", "fn read() {\n    let x = 0.5", ";\n}", None),
+            (
+                "rust",
+                "fn read() {\n    return match result {",
+                "\n    };\n}",
+                None,
+            ),
+            ("rust", "fn read() {\n    return build().", "\n}", None),
         ];
         for (index, (language, prefix, suffix, expected)) in cases.iter().enumerate() {
             let version = index as u32 + 1;

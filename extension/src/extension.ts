@@ -7,7 +7,7 @@ import { AutoImports, missingImportAt } from "./auto-import";
 import { DocumentSync } from "./documents";
 import { LocalImports } from "./imports";
 import { ModelBridge } from "./models";
-import { CompletionCache, ContinuationCache, cleanCompletion, excludedPath, followDeclarationRename, insertion } from "./completion";
+import { CompletionCache, ContinuationCache, cleanCompletion, codeOnlySuggestion, excludedPath, followDeclarationRename, inlineInsertion, isForeignRustStatement } from "./completion";
 import { CompletionParams, CompletionResult, DocumentPatchParams, EngineConfig, Mode } from "./protocol";
 import { InflightCompletion } from "./inflight";
 import { diagnosticMeaningKey, nearbyDiagnostics } from "./diagnostics";
@@ -29,10 +29,10 @@ export function activate(context: vscode.ExtensionContext) {
   const imports = new LocalImports();
   const autoImports = new AutoImports();
   const members = new MemberCompletion();
+  const duskline = vscode.env.appName.startsWith("Duskline IDE");
   let relatedDocumentsAvailable = false;
   const inflight = new InflightCompletion<CompletionResult | undefined>();
   const editCache = new CompletionCache<CompletionResult | null>();
-  const duskline = vscode.env.appName.startsWith("Duskline IDE");
   const speculative = new SpeculativeCompletion<{ model: string | undefined; elapsedMs: number }>(Date.now, duskline ? 350 : 25);
   let preparedIdeAvailable = false;
   let continuationHits = 0;
@@ -45,7 +45,6 @@ export function activate(context: vscode.ExtensionContext) {
   type Rename = { oldName: string; typed: string; offset: number; column: number };
   let recentReplacement: { doc: vscode.TextDocument; version: number; startLine: number; endLine: number; time: number; localText?: string; rename?: Rename } | undefined;
   let lastInlineRequest: { doc: vscode.TextDocument; version: number; offset: number } | undefined;
-  let lastDusklineEdit: { doc: vscode.TextDocument; version: number; at: number } | undefined;
   let dusklineTrigger: ReturnType<typeof setTimeout> | undefined;
   status.command = duskline ? "superborrow.selectModel" : "superborrow.cycleMode";
   context.subscriptions.push(output, status);
@@ -97,21 +96,13 @@ export function activate(context: vscode.ExtensionContext) {
     return nativeTabSetup;
   };
   const mode = (): Mode => duskline ? "ide" : config().get<Mode>("mode", "ide");
-  const inferenceDebounceMs = () => config().get("debounceMs", 60);
-  const editorDebounceMs = () => Math.min(30, inferenceDebounceMs());
-  const remainingInferenceDelay = (doc: vscode.TextDocument, kind: vscode.InlineCompletionTriggerKind): number => {
-    if (!duskline || kind === vscode.InlineCompletionTriggerKind.Invoke) return 0;
-    const last = lastDusklineEdit;
-    const elapsed = last?.doc === doc && last.version === doc.version ? performance.now() - last.at : editorDebounceMs();
-    return Math.max(0, inferenceDebounceMs() - elapsed);
-  };
   const usesRawInfill = () => duskline && models.modelId?.startsWith("duskline:qwen2.5-coder:") && config().get("fimFormat", "qwen") === "qwen";
   const engineConfig = (): EngineConfig => ({
     localApi: config().get("localApi", "llamaInfill"),
     endpoint: config().get("endpoint", "http://127.0.0.1:8080/infill"),
     model: config().get("model", ""),
     fimFormat: config().get("fimFormat", "qwen"),
-    debounceMs: inferenceDebounceMs(),
+    debounceMs: config().get("debounceMs", 60),
     requestTimeoutMs: config().get("requestTimeoutMs", 10000),
     maxTokens: config().get("maxTokens", 128),
     maxContextBytes: config().get("maxContextBytes", 24000),
@@ -310,7 +301,9 @@ export function activate(context: vscode.ExtensionContext) {
       }));
       if (!result || !result.text || doc.version !== version) return;
       const originalText = doc.getText();
-      const text = result.text.replace(/\r\n|\r|\n/g, doc.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n");
+      const code = codeOnlySuggestion(result.text, doc.languageId);
+      if (!code.trim()) return;
+      const text = code.replace(/\r\n|\r|\n/g, doc.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n");
       if (text === doc.getText(range)) { void vscode.window.showInformationMessage("Superborrow: no change suggested."); return; }
       const key = ++sequence;
       const original = vscode.Uri.parse(`superborrow-preview:/before-${key}/${path.basename(doc.fileName)}`);
@@ -425,7 +418,9 @@ export function activate(context: vscode.ExtensionContext) {
       }
       if (mode() === "ide" && !models.available) { lastDiscardReason = "IDE model unavailable"; return []; }
       const replacement = recentReplacement;
-      if (duskline && config().get("inlineNextEdit", true) && !completionContext.selectedCompletionInfo
+      // General Rust replacements can change ownership, patterns and error
+      // handling outside the requested gap. Keep them in reviewed Next Edit.
+      if (duskline && doc.languageId !== "rust" && config().get("inlineNextEdit", true) && !completionContext.selectedCompletionInfo
         && replacement?.doc === doc && replacement.version === version && performance.now() - replacement.time < 4000
         && position.line >= replacement.startLine && position.line <= replacement.endLine) {
         const range = new vscode.Range(replacement.startLine, 0, replacement.endLine, doc.lineAt(replacement.endLine).range.end.character);
@@ -438,16 +433,12 @@ export function activate(context: vscode.ExtensionContext) {
           try {
             const key = `edit:${requestEpoch}:${doc.uri}:${version}`;
             const saved = editCache.get(key);
-            if (!replacement.localText && saved === undefined) {
-              await debounce(remainingInferenceDelay(doc, completionContext.triggerKind), controller.signal);
-              if (doc.isClosed || doc.version !== version || epoch !== requestEpoch) return [];
-            }
             const result = replacement.localText || saved !== undefined ? saved : await sharedRequest(key, controller.signal, doc, range.start, {
               kind: "nextEdit", endPosition: { line: range.end.line, character: range.end.character },
               instruction: "Predict a minimal follow-up to the latest edit within the selected lines. Keep unrelated code. Return <NO_COMPLETION> if the selection already looks correct.",
               explicit: true,
             });
-            const text = replacement.localText ?? result?.text.replace(/\r\n|\r|\n/g, doc.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n");
+            const text = replacement.localText ?? (result && codeOnlySuggestion(result.text, doc.languageId).replace(/\r\n|\r|\n/g, doc.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n"));
             if (token.isCancellationRequested || doc.isClosed || doc.version !== version || epoch !== requestEpoch) return [];
             if (saved === undefined && result) editCache.put(key, text && text !== before ? result : null);
             if (text?.trim() && text !== before && !text.includes("```")) {
@@ -457,7 +448,7 @@ export function activate(context: vscode.ExtensionContext) {
               item.command = { title: "Superborrow edit accepted", command: "superborrow.accepted", arguments: [{ language: doc.languageId, provider: replacement.localText ? "local" : result?.provider, model: replacement.localText ? undefined : models.modelId }] };
               return [item];
             }
-          } catch (error) { if ((error as { code?: number })?.code !== -32800) logError(error); }
+          } catch (error) { logError(error); }
           finally { cancellation.dispose(); lastInlineLatencyMs = Math.round((performance.now() - started) * 100) / 100; }
           return [];
         }
@@ -484,10 +475,6 @@ export function activate(context: vscode.ExtensionContext) {
           let normalized = false;
           let resultModel = models.modelId;
           try {
-            if (duskline) {
-              await debounce(remainingInferenceDelay(doc, completionContext.triggerKind), caller.signal);
-              if (doc.isClosed || doc.version !== version || epoch !== requestEpoch) return [];
-            }
             if (mode() === "ide" && preparedIdeAvailable && models.concurrent && config().get<boolean>("speculativeTyping", true) && bridge && sync) {
               const current = bridge;
               const documents = sync;
@@ -508,7 +495,9 @@ export function activate(context: vscode.ExtensionContext) {
                 const modelStarted = performance.now();
                 modelRequests++;
                 const answer = await models.generate({ ...prepared, requestId: `inline:${++sequence}` }, generationSignal);
-                return { text: insertion(cleanCompletion(answer.text), origin.text.slice(origin.offset, origin.offset + 256), doc.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n"), metadata: { model, elapsedMs: Math.round(performance.now() - modelStarted) } };
+                const clean = codeOnlySuggestion(cleanCompletion(answer.text), origin.languageId);
+                const foreign = origin.languageId === "rust" && isForeignRustStatement(clean, origin.text.slice(0, origin.offset));
+                return { text: foreign ? "" : inlineInsertion(clean, origin.text.slice(Math.max(0, origin.offset - 2048), origin.offset), origin.text.slice(origin.offset, origin.offset + 256), doc.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n", origin.languageId), metadata: { model, elapsedMs: Math.round(performance.now() - modelStarted) } };
               }));
               result = { text: value.text, version: value.version, provider: "ide", fallback: false, elapsedMs: value.metadata.elapsedMs };
               resultModel = value.metadata.model;
@@ -520,8 +509,10 @@ export function activate(context: vscode.ExtensionContext) {
           if (!result) return [];
           if (doc.isClosed || doc.version !== version || result.version !== version || epoch !== requestEpoch) { lastDiscardReason = "obsolete shared response"; return []; }
           const offset = doc.offsetAt(position);
-          const suffix = snapshotText(doc)!.slice(offset, offset + 256);
-          text = normalized ? result.text : insertion(result.text, suffix, doc.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n");
+          const sourceText = snapshotText(doc)!;
+          const suffix = sourceText.slice(offset, offset + 256);
+          text = normalized ? result.text : inlineInsertion(codeOnlySuggestion(result.text, doc.languageId), sourceText.slice(Math.max(0, offset - 2048), offset), suffix, doc.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n", doc.languageId);
+          if (!normalized && doc.languageId === "rust" && isForeignRustStatement(text, doc.lineAt(position.line).text.slice(0, position.character))) text = "";
           metadata = { provider: result.provider, model: resultModel, diagnosticsKey };
           cache.put(key, { text, metadata });
           if (text) {
@@ -554,14 +545,13 @@ export function activate(context: vscode.ExtensionContext) {
     const selector = [{ scheme: "file" }, { scheme: "untitled" }, { scheme: "vscode-notebook-cell" }];
     if (duskline) {
       // Duskline grants only this extension the inline-completions additions.
-      // Let cached and language-service suggestions run earlier. Model work
-      // waits for the rest of the configured typing interval.
+      // Keep the editor debounce for ordinary model requests.
       const register = vscode.languages.registerInlineCompletionItemProvider as (
         selector: vscode.DocumentSelector,
         provider: vscode.InlineCompletionItemProvider,
         metadata: { displayName: string; debounceDelayMs: number },
       ) => vscode.Disposable;
-      inlineRegistration = register(selector, inlineProvider, { displayName: "Superborrow", debounceDelayMs: editorDebounceMs() });
+      inlineRegistration = register(selector, inlineProvider, { displayName: "Superborrow", debounceDelayMs: config().get("debounceMs", 60) });
     } else inlineRegistration = vscode.languages.registerInlineCompletionItemProvider(selector, inlineProvider);
   };
   registerInlineProvider();
@@ -709,7 +699,6 @@ export function activate(context: vscode.ExtensionContext) {
         ignoredDocumentChanges++; lastIgnoredScheme = event.document.uri.scheme;
         return;
       }
-      if (duskline) lastDusklineEdit = { doc: event.document, version: event.document.version, at: performance.now() };
       const previousReplacement = recentReplacement?.doc === event.document ? recentReplacement : undefined;
       if (previousReplacement) recentReplacement = undefined;
       const change = event.contentChanges[0];
@@ -751,7 +740,7 @@ export function activate(context: vscode.ExtensionContext) {
               || (lastInlineRequest?.doc === doc && lastInlineRequest.version === version && lastInlineRequest.offset === offset)
               || !vscode.workspace.getConfiguration("editor", doc.uri).get("inlineSuggest.enabled", true)) return;
             void vscode.commands.executeCommand("editor.action.inlineSuggest.trigger").then(undefined, logError);
-          }, renamePending ? 16 : Math.max(225, inferenceDebounceMs()));
+          }, renamePending ? 16 : Math.max(225, config().get<number>("debounceMs", 60)));
         }
       }
       continuation.advance(event.document.uri.toString(), event.document.version, event.contentChanges);
@@ -786,7 +775,6 @@ export function activate(context: vscode.ExtensionContext) {
     }
   }));
   context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(doc => {
-    if (lastDusklineEdit?.doc === doc) lastDusklineEdit = undefined;
     renameFollowup.closed(doc);
     if (sync?.has(doc.uri.toString()) || speculative.uri === doc.uri.toString()) { invalidate(); void sync?.close(doc.uri.toString()).catch(logError); }
   }));

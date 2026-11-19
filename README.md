@@ -1,7 +1,32 @@
 # Superborrow
 
-Antigravity IDE / VS Code için Rust bağlam motoru ve TypeScript istemcisiyle
-Antigravity modellerini varsayılan kullanan kod tamamlama. Sürüm **0.3.9**.
+Duskline, Antigravity ve uyumlu VS Code tabanlı editörler için Tab ile kod
+tamamlama eklentisi. Sürüm **0.3.14**, erken geliştirme önizlemesi.
+
+> **Erken aşama.** Şu an öncelik Duskline'da Rust yazarken güvenilir Tab
+> tamamlama. Önerileri kabul etmeden önce inceleyin ve derleyici ile testleri
+> çalıştırın. Model yanlış kod önerebilir, bir bloğu tekrarlayabilir veya
+> başka bir dilde yanıt verebilir. Filtreler bu hataların bir bölümünü yakalar.
+
+| Kullanım | Destek durumu |
+| --- | --- |
+| Rust | Öncelikli dil. Tree-sitter bağlamı, trait ve metot imzaları, Rust odaklı istemler ve tekrar filtreleri. |
+| TypeScript, JavaScript, TSX, JSX ve Python | Sözdizimi bağlamıyla tamamlama. Duskline'da bazı TS/JS önerileri dil servisinden gelir. |
+| Diğer diller | Dil kimliği ve imleç çevresindeki metin üzerinden genel tamamlama. Doğruluk ve kapsam seçilen modele bağlıdır. |
+
+### Sınırlar ve veri kullanımı
+
+- Testler bağlamı, öneri filtrelerini ve köprü protokolünü kapsar. Günlük
+  kullanımda her dil, model ve editör sürümü için eşdeğer doğrulama yoktur.
+  Cursor ile karşılaştırmalı hız veya kalite üstünlüğü doğrulanmadı.
+- Duskline seçili modeli yerel Ollama sürecinde çalıştırır. Model boyutu ve
+  donanım gecikme ile bellek kullanımını etkiler. Antigravity kendi model
+  sağlayıcısını ve hesabın kotasını kullanır. Bu entegrasyon host API'sine
+  bağlıdır ve editör güncellemelerinde değişebilir.
+- Bulut sağlayıcısı seçildiğinde kaynak kod parçaları ve ilgili bağlam
+  sağlayıcıya gönderilebilir. `superborrow.exclude` dosya adlarına göre
+  filtreler. Dosya içindeki sırları otomatik tespit etmez. `importContext`
+  kapatılırsa açık olmayan TS/JS import dosyaları okunmaz.
 
 ## Neler çalışıyor?
 
@@ -23,6 +48,10 @@ Antigravity modellerini varsayılan kullanan kod tamamlama. Sürüm **0.3.9**.
   yazıp alt satıra geçtiğinde hayalet metin önerilir; Tab ile kabul edilir.
 - **Suggest Next Edit**: seçili kod veya mevcut satır için öneri, fark önizlemesi,
   kullanıcı uygulaması ve arada değişen belge için sürüm kontrolü.
+- Rust'ta Tab imleçteki boşluğu doldurur. Satır veya blok değişiklikleri için
+  **Suggest Next Edit** kullanılabilir. Rust trait metot imzaları ilgili bağlama eklenir.
+- Sözdizimi ayrıştırıcısı olmayan dillerde de dil kimliği ve imleç çevresindeki
+  metin kullanılır. Öneri kalitesi seçilen modelin dil desteğine bağlıdır.
 
 **Suggest Next Edit** komutu seçili aralığı veya imlecin bulunduğu satırı işler.
 Duskline, dil servisinin belirlediği import ve yeniden adlandırma önerilerini de
@@ -41,7 +70,7 @@ npm --prefix extension test
 cargo test --locked --manifest-path core-rust/Cargo.toml
 cargo clippy --locked --manifest-path core-rust/Cargo.toml --all-targets -- -D warnings
 npm --prefix extension run package:windows
-& "$env:LOCALAPPDATA\Programs\Antigravity IDE\bin\antigravity-ide.cmd" --install-extension "$PWD\packages\superborrow-0.3.9-win32-x64.vsix" --force
+& "$env:LOCALAPPDATA\Programs\Antigravity IDE\bin\antigravity-ide.cmd" --install-extension "$PWD\packages\superborrow-0.3.14-win32-x64.vsix" --force
 ```
 
 Paket Windows x64 Rust çekirdeğini içerir. Kurulumdan sonra **Developer: Reload
@@ -56,6 +85,17 @@ sohbet, izinler ve gizlilik tercihleri değiştirilmez. Bu geçiş kalıcı bir 
 seçimidir; Pause tüm Superborrow önerilerini durdurur, yerleşik Tab'ı açmaz.
 
 ## Yerel model ayarı
+
+### Duskline'da kullanım
+
+VSIX'i Duskline'a kurup **Developer: Reload Window** çalıştırın. Duskline
+profilinde eklenti sürümleri sınırlandırılıyorsa izinli sürüm olarak bu paketin
+sürümünü ekleyin. **Superborrow: Select IDE Model** menüsünden önceden
+indirilmiş modeli seçin. Öneri göründüğünde **Tab** ile kabul edin. Rust
+dosyasında daha geniş değişiklikler için **Superborrow: Suggest Next Edit**
+komutu fark önizlemesi açar.
+
+### Diğer editörlerde yerel sunucu
 
 Önceden indirilmiş FIM uyumlu bir model ve çalışan sunucu gerekir. Eklenti model
 indirmez ve sunucuyu kendiliğinden kurmaz/başlatmaz. Ollama örneği:
@@ -175,4 +215,7 @@ kabul testi yalnız Superborrow'un kabul bildirimi geldiyse geçer.
 [Ölçüm notları](docs/validation.md), [mimari](docs/architecture.md),
 [protokol](docs/protocol.md), [IDE adaptör sözleşmesi](docs/ide-adapter.md).
 
-Özel kaynak deposu: [dRafaleD/superborrow](https://github.com/dRafaleD/superborrow).
+## Lisans
+
+Bu depoda henüz bir lisans dosyası yoktur. Kaynak kodun görüntülenebilir olması
+yeniden kullanım veya dağıtım izni vermez.

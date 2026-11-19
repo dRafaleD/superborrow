@@ -39,6 +39,7 @@ fn symbol_kind(kind: &str) -> bool {
         || matches!(
             kind,
             "function_item"
+                | "function_signature_item"
                 | "function_definition"
                 | "function_declaration"
                 | "method_definition"
@@ -58,7 +59,7 @@ fn owner(node: Node<'_>, text: &str) -> String {
         };
         if matches!(
             parent.kind(),
-            "class_definition" | "class_declaration" | "impl_item"
+            "class_definition" | "class_declaration" | "impl_item" | "trait_item"
         ) {
             let name = parent
                 .child_by_field_name("name")
@@ -119,7 +120,10 @@ impl SymbolIndex {
                             end: node.end_byte(),
                         });
                     }
-                    if !matches!(kind, "class_definition" | "class_declaration") {
+                    if !matches!(
+                        kind,
+                        "class_definition" | "class_declaration" | "trait_item"
+                    ) {
                         continue;
                     }
                 }

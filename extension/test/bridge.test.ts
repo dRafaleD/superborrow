@@ -327,3 +327,46 @@ test("untrusted RPC callers cannot supply unbounded imported context", async () 
     await assert.rejects(bridge.prepareIdeCompletion({ ...request, relatedDocuments: [{ ...related, text: 'x'.repeat(65537) }] }), code(-32602));
   } finally { await bridge.shutdown(); }
 });
+
+test("Rust Tab includes trait method contracts and uses a line boundary for an existing call", async () => {
+  const bridge = await setup();
+  try {
+    const uri = "file:///project/main.rs";
+    const prefix = "use crate::repository::Repository;\nfn run(repo: &impl Repository) { repo.fet";
+    await bridge.updateDocument({ uri, version: 1, languageId: "rust", text: prefix + "(); }" });
+    await bridge.updateDocument({
+      uri: "file:///project/repository.rs", version: 1, languageId: "rust",
+      text: "pub trait Repository { fn fetch(&self) -> Result<Record, RepoError>; }",
+    });
+    const script = { uri: "file:///project/repository.ts", version: 1, languageId: "typescript",
+      text: "export interface Repository { fetch(): JsOnlyRecord; }" };
+    await bridge.updateDocument(script);
+    await bridge.updateDocument({ ...script, version: 2, text: script.text + "\nlet jsHistoryOnly = true;" });
+    const prepared = await bridge.prepareIdeCompletion({
+      uri, version: 1, mode: "ide", position: { line: 1, character: prefix.split("\n")[1].length },
+    });
+    assert.match(prepared.prompt, /Repository::fn fetch\(&self\) -> Result<Record, RepoError>/);
+    assert.doesNotMatch(prepared.prompt, /JsOnlyRecord|jsHistoryOnly/);
+    assert.match(prepared.prompt, /Preserve borrowing, mutability and Result\/Option handling/);
+    assert.equal(prepared.qwenStopAt, "line");
+    assert.match(prepared.qwenInfill!, /^<\|fim_prefix\|>\/\/ Language: Rust\n/);
+    assert.match(prepared.qwenInfill!, /repo\.fet<\|fim_suffix\|>\(\); \}/);
+  } finally { await bridge.shutdown(); }
+});
+
+test("languages without a grammar still receive a language-tagged prefix and suffix", async () => {
+  const bridge = await setup();
+  try {
+    for (const [languageId, prefix, suffix] of [
+      ["go", "func answer() int { return ", " }"],
+      ["cpp", "int answer() { return ", "; }"],
+      ["zig", "fn answer() u32 { return ", "; }"],
+    ]) {
+      const uri = `file:///project/${languageId}`;
+      await bridge.updateDocument({ uri, version: 1, languageId, text: prefix + suffix });
+      const prepared = await bridge.prepareIdeCompletion({ uri, version: 1, mode: "ide", position: { line: 0, character: prefix.length } });
+      assert.equal(prepared.languageId, languageId);
+      assert.ok(prepared.prompt.includes(`<PRE>${prefix}</PRE>\n<SUF>${suffix}</SUF>`));
+    }
+  } finally { await bridge.shutdown(); }
+});

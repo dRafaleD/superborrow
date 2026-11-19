@@ -41,6 +41,11 @@ export function createStub() {
   };
   const noop = () => {};
   const vscode = {
+    EventEmitter: class {
+      event = event();
+      fire(value: unknown) { this.event.fire(value); }
+      dispose() {}
+    },
     Position, Range, Selection, CancellationTokenSource,
     Uri: { parse: uri, file: (filename: string) => uri(`file://${filename}`) },
     EndOfLine: { LF: 1, CRLF: 2 }, ConfigurationTarget: { Global: 1 }, StatusBarAlignment: { Right: 2 },
@@ -79,11 +84,12 @@ export function document(text: string, languageId: string, filename = 'untitled:
     uri: uri(filename), version: 1, languageId, isClosed: false, eol: 1,
     get lineCount() { return text.split('\n').length; },
     getText: (range?: Range) => range ? text.slice(doc.offsetAt(range.start), doc.offsetAt(range.end)) : text,
+    replaceText: (value: string) => { text = value; doc.version++; },
     offsetAt: (position: Position) => text.split('\n').slice(0, position.line).reduce((n, line) => n + line.length + 1, 0) + position.character,
     positionAt: (offset: number) => { const lines = text.slice(0, offset).split('\n'); return new Position(lines.length - 1, lines.at(-1)!.length); },
     lineAt: (line: number) => { const value = text.split('\n')[line]; return { text: value, range: new Range(line, 0, line, value.length) }; },
     validateRange: (range: Range) => range,
     getWordRangeAtPosition: (position: Position) => { const line = text.split('\n')[position.line]; for (const match of line.matchAll(/[$\w]+/g)) if (match.index! <= position.character && position.character <= match.index! + match[0].length) return new Range(position.line, match.index!, position.line, match.index! + match[0].length); },
   };
-  return doc as unknown as VS.TextDocument;
+  return doc as unknown as VS.TextDocument & { replaceText(value: string): void };
 }

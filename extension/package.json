@@ -2,7 +2,7 @@
   "name": "superborrow",
   "displayName": "Superborrow",
   "description": "Low-latency Tab completion and inline edits for Duskline and compatible VS Code hosts.",
-  "version": "0.3.9",
+  "version": "0.3.14",
   "private": true,
   "publisher": "superborrow-dev",
   "engines": {

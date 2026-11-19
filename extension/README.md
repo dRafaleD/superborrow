@@ -1,6 +1,16 @@
-# Superborrow 0.3.9
+# Superborrow 0.3.14
 
 Hybrid local / IDE code completion with a bundled Rust context engine.
+
+**Early development preview.** Rust is the current priority. JavaScript,
+TypeScript and Python have syntax-aware context, and other languages use
+text context. Suggestions may be incorrect or repetitive. Review edits
+before accepting them and run your project's checks. Relative speed and
+quality against Cursor have not been established.
+
+Duskline uses the selected local Ollama model. Antigravity and other cloud
+providers can receive source snippets and relevant context. Filename exclusions
+do not detect secrets inside eligible source files.
 
 In a trusted workspace, the engine starts automatically. Click the status bar to
 cycle Hybrid, Local and Antigravity modes. The signed-in Antigravity model

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import * as assert from "node:assert/strict";
 import { DocumentSync } from "../src/documents";
-import { CompletionCache, ContinuationCache, cleanCompletion, excludedPath, followDeclarationRename, insertion } from "../src/completion";
+import { CompletionCache, ContinuationCache, cleanCompletion, codeOnlySuggestion, excludedPath, followDeclarationRename, inlineInsertion, insertion } from "../src/completion";
 
 test("document synchronization preserves order and skips stale snapshots", async () => {
   const events: string[] = [];
@@ -120,6 +120,46 @@ test("ghost text keeps suffix and EOL; exclusions protect matching documents", (
     assert.equal(excludedPath(file, [".env*", "*.key", "node_modules"]), true);
   }
   assert.equal(excludedPath("/project/keymap.ts", ["*.key"]), false);
+});
+
+test("code-only suggestions preserve explicit code and comments while filtering chat wrappers", () => {
+  const prose = "In this code, we have a variable `y` initialized to 10. We then print the value of `y`.";
+  const code = '    println!("{y}");';
+  assert.equal(codeOnlySuggestion(prose), "");
+  assert.equal(codeOnlySuggestion(`Here is the code:\n\n\`\`\`rust\n${code}\n\`\`\`\n\n${prose}`), code);
+  assert.equal(codeOnlySuggestion(`${code}\r\n\r\n${prose}`), code);
+  assert.equal(codeOnlySuggestion(`    // ${prose}\n${code}`, "rust"), code);
+  assert.equal(codeOnlySuggestion("    // Print the value of y.", "rust"), "");
+  assert.equal(codeOnlySuggestion("    # Print the value of y.\r\n    print(y)", "python"), "    print(y)");
+  assert.equal(codeOnlySuggestion("/// API contract\nfn run() {}", "rust"), "/// API contract\nfn run() {}");
+  assert.equal(codeOnlySuggestion("#include <stdio.h>", "cpp"), "#include <stdio.h>");
+  assert.equal(codeOnlySuggestion("#[derive(Debug)]", "rust"), "#[derive(Debug)]");
+  assert.equal(codeOnlySuggestion("// 2", "python"), "// 2");
+  assert.equal(codeOnlySuggestion('y + 1'), 'y + 1');
+});
+
+test("inline call completions stop repeated arguments without dropping nested parentheses", () => {
+  const complete = (text: string, prefix = "println!(") => inlineInsertion(text, prefix, ");", "\n", "rust");
+  assert.equal(complete("value, value, value"), "value");
+  assert.equal(complete(", value, value", "println!(value"), "");
+  assert.equal(complete("count, count", 'println!("{count}", '), "count");
+  assert.equal(complete('"count {}", count'), '"count {}", count');
+  assert.equal(complete("number(), number(), number()"), "number()");
+  assert.equal(complete("expression())\nignored();"), "expression()");
+  assert.equal(complete('pair("x,y", other)'), 'pair("x,y", other)');
+  assert.equal(complete("value", "    // println!("), "value");
+});
+
+test("Rust Tab keeps one copy of an adjacent statement block across requests", () => {
+  const block = 'let mut spaces = "   ";\n    spaces = spaces.len();\n    println!("The value of spaces is: {}", spaces);';
+  const open = "fn main() {\n    ";
+  const next = "\n\n    ";
+  const insert = (text: string, prefix = open) => inlineInsertion(text, prefix, "\n}", "\n", "rust");
+  assert.equal(insert(block + next + block + next + block), block);
+  assert.equal(insert(block, open + block + next), "");
+  assert.equal(insert(block.split("\n").slice(0, 2).join("\n") + '\n    println!("The value', open + block + next), "");
+  assert.equal(insert(block + next + block.replaceAll("spaces", "tabs")), block + next + block.replaceAll("spaces", "tabs"));
+  assert.equal(insert('println!("retry");\n    println!("retry");'), 'println!("retry");\n    println!("retry");');
 });
 
 test("a local declaration rename updates references in the same flat statement only", () => {

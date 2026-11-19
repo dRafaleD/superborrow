@@ -27,6 +27,80 @@ async function close() {
   for (const item of stub.context.subscriptions.splice(0).reverse()) item.dispose();
 }
 
+test('Duskline Tab hides prose and strips filler comments from code suggestions', async () => {
+  const doc = document('fn run() {\n    \n}', 'rust', 'file:///synthetic/code-only.rs');
+  const cursor = new Position(1, 4) as VS.Position;
+  editor(doc, cursor);
+  let response = "In this code, we have a variable `y` initialized to 10. We then print the value of `y`.";
+  stub.state.adapter = {
+    version: 1, modelId: 'duskline:qwen2.5-coder:1.5b-base', supportsConcurrentRequests: false,
+    generateCompletion: async () => ({ text: response }),
+  };
+  const api = runtime.activate(stub.context);
+  try {
+    await api.ready;
+    const token = new CancellationTokenSource().token as VS.CancellationToken;
+    const context = { triggerKind: 0, selectedCompletionInfo: undefined } as const;
+    assert.deepEqual(await api.provideInlineCompletionItems(doc, cursor, context, token), []);
+    response = '// Print the value of y.\nprintln!("{y}");';
+    const next = document('fn run() {\n    let y = 10;\n    \n}', 'rust', 'file:///synthetic/code-only-with-value.rs');
+    const nextCursor = next.positionAt(next.getText().lastIndexOf('    ') + 4);
+    editor(next, nextCursor);
+    const items = await api.provideInlineCompletionItems(next, nextCursor, context, token);
+    assert.ok(Array.isArray(items) && items.length === 1);
+    assert.equal(items[0].insertText, 'println!("{y}");');
+  } finally { await close(); }
+});
+
+test('Rust Tab hides a JavaScript statement from the Duskline model', async () => {
+  const doc = document('fn run() {\n    \n}', 'rust', 'file:///synthetic/fixture.rs');
+  const cursor = doc.positionAt(doc.getText().indexOf('    ') + 4);
+  editor(doc, cursor);
+  stub.state.adapter = {
+    version: 1, modelId: 'duskline:qwen2.5-coder:1.5b-base',
+    supportsConcurrentRequests: false,
+    generateCompletion: async () => ({ text: 'console.log("hello");' }),
+  };
+  const api = runtime.activate(stub.context);
+  try {
+    await api.ready;
+    const token = new CancellationTokenSource().token as VS.CancellationToken;
+    const items = await api.provideInlineCompletionItems(doc, cursor, { triggerKind: 0, selectedCompletionInfo: undefined }, token);
+    assert.deepEqual(items, []);
+    assert.equal(api.getStatus().modelRequests, 1);
+  } finally { await close(); }
+});
+
+test('a Rust replacement still requests a cursor insertion from Duskline Tab', async () => {
+  const before = 'fn run() { let result = compute(old); }';
+  const doc = document(before, 'rust');
+  const start = before.indexOf('compute');
+  const end = before.indexOf(';');
+  editor(doc, doc.positionAt(end));
+  const kinds: string[] = [];
+  stub.state.adapter = {
+    version: 1, modelId: 'test:rust', supportsConcurrentRequests: false,
+    generateCompletion: async ({ kind }: { kind: string }) => { kinds.push(kind); return { text: 'argument)' }; },
+  };
+  const api = runtime.activate(stub.context);
+  try {
+    await api.ready;
+    const range = new Range(0, start, 0, end);
+    doc.replaceText(before.slice(0, start) + 'compute(' + before.slice(end));
+    const cursor = doc.positionAt(start + 'compute('.length);
+    editor(doc, cursor);
+    stub.vscode.workspace.onDidChangeTextDocument.fire({
+      document: doc, contentChanges: [{ range, rangeOffset: start, rangeLength: end - start, text: 'compute(' }],
+    });
+    const token = new CancellationTokenSource().token as VS.CancellationToken;
+    const items = await api.provideInlineCompletionItems(doc, cursor, { triggerKind: 0, selectedCompletionInfo: undefined }, token);
+    assert.deepEqual(kinds, ['inline']);
+    assert.ok(Array.isArray(items) && items.length === 1);
+    assert.equal(items[0].insertText, 'argument)');
+    assert.ok(items[0].range?.isEmpty);
+  } finally { await close(); }
+});
+
 test('Duskline respects a non-concurrent adapter while identical callers share one request', async () => {
   const doc = document('def add(a, b):\n    return ', 'python');
   const position = doc.positionAt(doc.getText().length); editor(doc, position);
