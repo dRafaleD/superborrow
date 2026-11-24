@@ -3,10 +3,9 @@
 [English](README.md) · [Türkçe](README.tr.md)
 
 Duskline, Antigravity ve uyumlu VS Code tabanlı editörler için Tab ile kod
-tamamlama eklentisi. Sürüm **0.3.14**, erken geliştirme önizlemesi.
+tamamlama eklentisi. Sürüm **0.3.14**.
 
-> **Erken aşama.** Şu an öncelik Duskline'da Rust yazarken güvenilir Tab
-> tamamlama. Önerileri kabul etmeden önce inceleyin ve derleyici ile testleri
+> Duskline’da öncelik Rust için Tab tamamlamadır. Önerileri kabul etmeden önce inceleyin ve derleyici ile testleri
 > çalıştırın. Model yanlış kod önerebilir, bir bloğu tekrarlayabilir veya
 > başka bir dilde yanıt verebilir. Filtreler bu hataların bir bölümünü yakalar.
 

@@ -3,10 +3,9 @@
 [English](README.md) · [Türkçe](README.tr.md)
 
 Tab completion for Duskline, Antigravity, and compatible VS Code–based editors.
-Version **0.3.14** is an early development preview.
+Version **0.3.14**.
 
-> **Early preview.** The current priority is reliable Rust Tab completion in
-> Duskline. Review suggestions before accepting them and run your project's
+> Rust Tab completion in Duskline is the primary focus. Review suggestions before accepting them and run your project's
 > compiler and tests. A model can suggest incorrect code, repeat a block, or
 > answer in the wrong language. Filters catch some of these cases.
 

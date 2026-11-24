@@ -6,7 +6,7 @@
 
 Hybrid local / IDE code completion with a bundled Rust context engine.
 
-**Early development preview.** Rust is the current priority. JavaScript,
+Rust is the primary focus. JavaScript,
 TypeScript and Python have syntax-aware context, and other languages use
 text context. Suggestions may be incorrect or repetitive. Review edits
 before accepting them and run your project's checks. Relative speed and
